@@ -5,6 +5,7 @@ import { LevelSelectModal } from './components/LevelSelectModal';
 import { VictoryModal } from './components/VictoryModal';
 import { MapEditor } from './components/MapEditor';
 import { InstallBanner } from './components/InstallBanner';
+import { ReloadPrompt } from './components/ReloadPrompt';
 import { NowPlaying } from './components/NowPlaying';
 import { SettingsMenu } from './components/SettingsMenu';
 import { updatePhysics, launchFleets, runAIDecisions, type PhysicsEngineState } from './engine/physics';
@@ -290,6 +291,7 @@ function App() {
         />
       )}
 
+      <ReloadPrompt />
       <InstallBanner />
       <NowPlaying />
       <SettingsMenu 
