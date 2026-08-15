@@ -58,9 +58,9 @@ export const HUD: React.FC<HUDProps> = ({
   const activeFactions = (Object.keys(factionCounts) as FactionId[]).filter(f => f !== 'neutral' && (factionCounts[f].planets > 0 || factionCounts[f].ships > 0));
 
   return (
-    <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-3 pt-[max(env(safe-area-inset-top),0.75rem)] pb-[max(env(safe-area-inset-bottom),0.75rem)] px-[max(env(safe-area-inset-left),0.75rem)] z-10 select-none">
+    <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-1 sm:p-3 pt-[max(env(safe-area-inset-top),0.25rem)] pb-[max(env(safe-area-inset-bottom),0.25rem)] px-[max(env(safe-area-inset-left),0.25rem)] z-10 select-none">
       {/* Top bar */}
-      <div className="flex justify-between items-center glass-panel rounded-lg px-4 py-2 pointer-events-auto max-w-5xl mx-auto w-full flex-wrap gap-2">
+      <div className="flex justify-between items-center glass-panel rounded-lg px-2 sm:px-4 py-1 sm:py-2 pointer-events-auto max-w-5xl mx-auto w-full flex-nowrap gap-1 sm:gap-2">
         <div className="flex items-center gap-3">
           <button
             onClick={onOpenLevelSelect}
@@ -69,11 +69,11 @@ export const HUD: React.FC<HUDProps> = ({
             <Grid className="w-3.5 h-3.5 glow-cyan" />
             <span className="font-orbitron tracking-wider hidden sm:inline">Levels</span>
           </button>
-          <div className="text-sm font-bold text-white font-orbitron tracking-widest glow-cyan">{levelName}</div>
+          <div className="text-xs sm:text-sm font-bold text-white font-orbitron tracking-widest glow-cyan truncate max-w-[100px] sm:max-w-none">{levelName}</div>
         </div>
 
         {/* Faction strength bar */}
-        <div className="w-full sm:flex-1 sm:max-w-sm mx-0 sm:mx-4 flex flex-col gap-1 order-last sm:order-none mt-2 sm:mt-0">
+        <div className="flex-1 max-w-sm mx-2 sm:mx-4 flex flex-col gap-0.5 sm:gap-1">
           <div className="flex justify-between text-[10px] text-white/60">
             {activeFactions.map(f => (
               <span key={f} style={{ color: FACTIONS[f].color }}>
@@ -115,7 +115,7 @@ export const HUD: React.FC<HUDProps> = ({
       </div>
 
       {/* Bottom bar - percentage slider + speed controls */}
-      <div className="flex flex-wrap justify-between items-center glass-panel rounded-lg px-4 py-2.5 pointer-events-auto max-w-3xl mx-auto w-full gap-2 sm:gap-4">
+      <div className="flex flex-nowrap justify-between items-center glass-panel rounded-lg px-2 sm:px-4 py-1.5 sm:py-2.5 pointer-events-auto max-w-3xl mx-auto w-full gap-2 sm:gap-4 overflow-x-auto no-scrollbar">
         {/* Send percentage slider */}
         <div className="flex items-center gap-2 flex-1 min-w-[150px] max-w-xs">
           <span className="text-[10px] text-white/50 whitespace-nowrap hidden sm:inline">Send</span>
@@ -140,7 +140,7 @@ export const HUD: React.FC<HUDProps> = ({
         </button>
 
         {/* Speed controls */}
-        <div className="flex items-center gap-1 bg-white/5 p-1 rounded-lg justify-center flex-wrap">
+        <div className="flex items-center gap-0.5 sm:gap-1 bg-white/5 p-1 rounded-lg justify-center flex-nowrap shrink-0">
           <button
             onClick={onTogglePause}
             className={`p-1.5 rounded-md transition-all cursor-pointer ${

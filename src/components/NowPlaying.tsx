@@ -28,7 +28,7 @@ export const NowPlaying: React.FC = () => {
 
   return (
     <div 
-      className={`fixed bottom-4 right-4 text-white/30 text-xs font-mono tracking-widest pointer-events-none transition-opacity duration-1000 z-50 ${
+      className={`fixed bottom-[max(env(safe-area-inset-bottom),0.5rem)] right-2 sm:bottom-4 sm:right-4 text-white/30 text-[8px] sm:text-xs font-mono tracking-widest pointer-events-none transition-opacity duration-1000 z-50 ${
         visible ? 'opacity-100' : 'opacity-0'
       }`}
     >

@@ -82,7 +82,7 @@ export const MapEditorModal: React.FC<MapEditorModalProps> = ({
 
         <div className="flex-1 overflow-y-auto my-4 pr-2 space-y-3">
           {planets.map((planet, idx) => (
-            <div key={planet.id} className="glass-panel p-3 rounded-xl border border-slate-800 flex items-center gap-3">
+            <div key={planet.id} className="glass-panel p-3 rounded-xl border border-slate-800 flex flex-wrap sm:flex-nowrap items-center gap-3">
               <span className="font-orbitron font-bold text-xs text-amber-400 w-6">#{idx + 1}</span>
 
               <select

@@ -118,52 +118,52 @@ export const MapEditor: React.FC<MapEditorProps> = ({ initialPlanets, onStartGam
       </div>
 
       {/* Top Toolbar */}
-      <div className="relative z-10 glass-panel-glow-white bg-black/50 p-4 pr-20 pt-[max(env(safe-area-inset-top),1rem)] flex flex-wrap gap-4 justify-between items-center border-b border-white/10 shadow-lg">
+      <div className="relative z-10 glass-panel-glow-white bg-black/50 p-2 sm:p-4 pt-[max(env(safe-area-inset-top),0.5rem)] flex flex-nowrap gap-2 sm:gap-4 justify-between items-center border-b border-white/10 shadow-lg overflow-x-auto no-scrollbar">
         <div className="flex items-center gap-4">
           <Settings className="w-5 h-5 text-white/50" />
           <h1 className="text-xl font-orbitron font-bold text-white tracking-widest uppercase glow-white hidden sm:block">Map Editor</h1>
         </div>
         
-        <div className="flex flex-wrap justify-center gap-2">
+        <div className="flex flex-nowrap justify-center gap-1 sm:gap-2 shrink-0">
           <button 
             onClick={() => setTool('select')} 
-            className={`px-4 py-2 rounded text-xs font-bold uppercase tracking-widest transition-all ${tool === 'select' ? 'bg-white text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
+            className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded text-[10px] sm:text-xs font-bold uppercase tracking-widest transition-all ${tool === 'select' ? 'bg-white text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
           >
             <span className="hidden md:inline">Select</span>
           </button>
           <button 
             onClick={() => setTool('add_standard')} 
-            className={`px-4 py-2 rounded text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-2 ${tool === 'add_standard' ? 'bg-white text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
+            className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded text-[10px] sm:text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-1 sm:gap-2 ${tool === 'add_standard' ? 'bg-white text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
           >
             <Circle className="w-4 h-4" /> <span className="hidden md:inline">Planet</span>
           </button>
           <button 
             onClick={() => setTool('add_mothership')} 
-            className={`px-4 py-2 rounded text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-2 ${tool === 'add_mothership' ? 'bg-white text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
+            className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded text-[10px] sm:text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-1 sm:gap-2 ${tool === 'add_mothership' ? 'bg-white text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
           >
             <Hexagon className="w-4 h-4" /> <span className="hidden md:inline">Mothership</span>
           </button>
           <button 
             onClick={() => setTool('add_turret')} 
-            className={`px-4 py-2 rounded text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-2 ${tool === 'add_turret' ? 'bg-white text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
+            className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded text-[10px] sm:text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-1 sm:gap-2 ${tool === 'add_turret' ? 'bg-white text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
           >
             <Crosshair className="w-4 h-4" /> <span className="hidden md:inline">Turret</span>
           </button>
           <button 
             onClick={() => setTool('add_portal')} 
-            className={`px-4 py-2 rounded text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-2 ${tool === 'add_portal' ? 'bg-white text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
+            className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded text-[10px] sm:text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-1 sm:gap-2 ${tool === 'add_portal' ? 'bg-white text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
           >
             <LinkIcon className="w-4 h-4" /> <span className="hidden md:inline">Portal</span>
           </button>
           <button 
             onClick={() => setTool('delete')} 
-            className={`px-4 py-2 rounded text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-2 ${tool === 'delete' ? 'bg-red-500 text-white' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
+            className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded text-[10px] sm:text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-1 sm:gap-2 ${tool === 'delete' ? 'bg-red-500 text-white' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
           >
             <Trash2 className="w-4 h-4" /> <span className="hidden md:inline">Delete</span>
           </button>
         </div>
 
-        <div className="flex flex-wrap gap-2 sm:gap-4">
+        <div className="flex flex-nowrap gap-1 sm:gap-4 shrink-0">
           <button onClick={onExit} className="px-4 sm:px-6 py-2 rounded bg-white/10 hover:bg-white/20 text-white text-xs font-bold uppercase tracking-widest transition-all">
             Cancel
           </button>
@@ -175,7 +175,7 @@ export const MapEditor: React.FC<MapEditorProps> = ({ initialPlanets, onStartGam
 
       {/* Properties Panel */}
       {selectedPlanet && (
-        <div className="absolute right-6 top-24 z-10 w-64 glass-panel-glow-white rounded-xl p-4 flex flex-col gap-4">
+        <div className="absolute right-2 sm:right-6 top-16 sm:top-24 z-10 w-52 sm:w-64 glass-panel-glow-white rounded-xl p-2 sm:p-4 flex flex-col gap-2 sm:gap-4 origin-top-right">
           <h3 className="text-sm font-orbitron font-bold text-white tracking-widest uppercase border-b border-white/20 pb-2">Properties</h3>
           
           <div>

@@ -29,7 +29,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({
       </button>
       
       {showSettings && (
-        <div className="absolute top-12 right-0 bg-black/80 backdrop-blur-md border border-white/10 shadow-2xl rounded-lg p-4 flex flex-col gap-4 w-56 z-50 pointer-events-auto">
+        <div className="absolute top-10 sm:top-12 right-0 bg-black/80 backdrop-blur-md border border-white/10 shadow-2xl rounded-lg p-3 sm:p-4 flex flex-col gap-3 sm:gap-4 w-48 sm:w-56 z-50 pointer-events-auto origin-top-right">
           <div className="flex justify-between items-center border-b border-white/10 pb-2 mb-1 text-white/90 font-orbitron text-sm tracking-wider">
             AUDIO CONFIG
           </div>

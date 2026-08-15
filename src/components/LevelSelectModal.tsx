@@ -56,61 +56,59 @@ export const LevelSelectModal: React.FC<LevelSelectModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-      {/* Centered Minimalist Floating Header */}
-      <div className="flex flex-col items-center justify-center relative mb-8 w-full max-w-4xl">
-        {/* Close button absolutely positioned on the right */}
-        {isGameActive && (
-          <button
-            onClick={onClose}
-            className="absolute top-0 right-0 p-3 rounded-lg bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-all cursor-pointer border border-white/5"
-            title="Resume Game"
-          >
-            <X className="w-6 h-6" />
-          </button>
-        )}
-
+    <div className="fixed inset-0 z-50 flex flex-col p-2 sm:p-4 bg-black/80 backdrop-blur-md overflow-y-auto no-scrollbar">
+      <div className="flex flex-col items-center justify-center relative mt-4 sm:mt-0 mb-2 sm:mb-8 w-full max-w-4xl mx-auto shrink-0 my-auto sm:my-0">
         <img src="/favicon.svg" alt="Logo" className="w-28 h-28 mb-4 drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]" />
         <h2 className="text-4xl font-black text-white font-orbitron tracking-[0.2em] uppercase mb-1 drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">
           {GAME_NAME}
         </h2>
-        <span className="text-xs text-white/50 font-mono tracking-widest">v{GAME_VERSION}</span>
+        <span className="text-[10px] sm:text-xs text-white/50 font-mono tracking-widest">v{GAME_VERSION}</span>
       </div>
 
-      <div className="w-full max-w-4xl glass-panel rounded-2xl p-6 flex flex-col max-h-[70vh]">
+      <div className="w-full max-w-4xl mx-auto glass-panel rounded-2xl p-2 sm:p-6 flex flex-col shrink-0 mb-4 sm:mb-0 relative">
+        {/* Close button absolutely positioned on the right of the whole modal, on mobile it can go to the top right of the screen or header */}
+        {isGameActive && (
+          <button
+            onClick={onClose}
+            className="fixed sm:absolute top-2 right-2 sm:top-0 sm:right-0 p-2 sm:p-3 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer border border-white/5 z-50 backdrop-blur-md"
+            title="Resume Game"
+          >
+            <X className="w-5 h-5 sm:w-6 sm:h-6" />
+          </button>
+        )}
 
-        <div className="flex gap-4 mb-6">
+        <div className="flex gap-2 sm:gap-4 mb-2 sm:mb-6 shrink-0">
           <button
             onClick={() => setTab('campaign')}
-            className={`flex-1 py-3 rounded-lg text-sm font-bold uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center gap-2 border ${
+            className={`flex-1 py-2 sm:py-3 rounded-md sm:rounded-lg text-[10px] sm:text-sm font-bold uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center gap-1.5 sm:gap-2 border ${
               tab === 'campaign' 
                 ? 'glass-panel-glow-white text-white border-white/50 shadow-[0_0_20px_rgba(255,255,255,0.2)]' 
                 : 'bg-black/20 text-white/40 hover:bg-white/5 hover:text-white/80 border-white/5'
             }`}
           >
-            <Layers className="w-4 h-4" />
+            <Layers className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             <span className="hidden sm:inline">Campaign</span>
           </button>
           <button
             onClick={() => setTab('skirmish')}
-            className={`flex-1 py-3 rounded-lg text-sm font-bold uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center gap-2 border ${
+            className={`flex-1 py-2 sm:py-3 rounded-md sm:rounded-lg text-[10px] sm:text-sm font-bold uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center gap-1.5 sm:gap-2 border ${
               tab === 'skirmish' 
                 ? 'glass-panel-glow-white text-white border-white/50 shadow-[0_0_20px_rgba(255,255,255,0.2)]' 
                 : 'bg-black/20 text-white/40 hover:bg-white/5 hover:text-white/80 border-white/5'
             }`}
           >
-            <Swords className="w-4 h-4" />
+            <Swords className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             <span className="hidden sm:inline">Skirmish</span>
           </button>
           <button
             onClick={() => setTab('custom')}
-            className={`flex-1 py-3 rounded-lg text-sm font-bold uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center gap-2 border ${
+            className={`flex-1 py-2 sm:py-3 rounded-md sm:rounded-lg text-[10px] sm:text-sm font-bold uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center gap-1.5 sm:gap-2 border ${
               tab === 'custom' 
                 ? 'glass-panel-glow-white text-white border-white/50 shadow-[0_0_20px_rgba(255,255,255,0.2)]' 
                 : 'bg-black/20 text-white/40 hover:bg-white/5 hover:text-white/80 border-white/5'
             }`}
           >
-            <Map className="w-4 h-4" />
+            <Map className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             <span className="hidden sm:inline">Custom Maps</span>
           </button>
         </div>
@@ -144,25 +142,25 @@ export const LevelSelectModal: React.FC<LevelSelectModalProps> = ({
                 });
 
                 return (
-                  <div className={`w-full max-w-2xl h-full flex flex-col items-center transition-all duration-500 ${isLocked ? 'opacity-50 grayscale' : 'opacity-100'}`}>
+                  <div className={`w-full max-w-2xl h-full flex flex-col items-center transition-all duration-500 shrink-0 min-h-[250px] sm:min-h-0 ${isLocked ? 'opacity-50 grayscale' : 'opacity-100'}`}>
                     
                     {/* SVG Minimap Box */}
-                    <div className="w-full h-64 mb-6 rounded-xl border border-white/10 bg-black/40 overflow-hidden relative shadow-[inset_0_0_50px_rgba(0,0,0,0.8)] group">
+                    <div className="w-full h-32 sm:h-64 mb-2 sm:mb-6 rounded-xl border border-white/10 bg-black/40 overflow-hidden relative shadow-[inset_0_0_50px_rgba(0,0,0,0.8)] group shrink-0">
                       
                       {/* Left Arrow */}
                       <button 
                         onClick={() => setCampaignIndex(prev => (prev > 0 ? prev - 1 : CAMPAIGN_LEVELS.length - 1))}
-                        className="absolute left-4 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-black/40 hover:bg-white/10 text-white/50 hover:text-white transition-all cursor-pointer backdrop-blur-sm border border-white/10 opacity-0 group-hover:opacity-100 sm:opacity-100"
+                        className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-20 p-1 sm:p-2 rounded-full bg-black/40 hover:bg-white/10 text-white/50 hover:text-white transition-all cursor-pointer backdrop-blur-sm border border-white/10 opacity-100 group-hover:opacity-100"
                       >
-                        <ChevronLeft className="w-6 h-6" />
+                        <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
                       </button>
 
                       {/* Right Arrow */}
                       <button 
                         onClick={() => setCampaignIndex(prev => (prev < CAMPAIGN_LEVELS.length - 1 ? prev + 1 : 0))}
-                        className="absolute right-4 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-black/40 hover:bg-white/10 text-white/50 hover:text-white transition-all cursor-pointer backdrop-blur-sm border border-white/10 opacity-0 group-hover:opacity-100 sm:opacity-100"
+                        className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-20 p-1 sm:p-2 rounded-full bg-black/40 hover:bg-white/10 text-white/50 hover:text-white transition-all cursor-pointer backdrop-blur-sm border border-white/10 opacity-100 group-hover:opacity-100"
                       >
-                        <ChevronRight className="w-6 h-6" />
+                        <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
                       </button>
 
                       <svg 
@@ -210,16 +208,16 @@ export const LevelSelectModal: React.FC<LevelSelectModalProps> = ({
                     </div>
 
                     {/* Level Info */}
-                    <div className="text-center px-8 w-full">
-                      <div className="flex items-center justify-center gap-3 mb-2">
-                        <h3 className={`text-2xl font-bold font-orbitron tracking-widest uppercase ${isCurrent ? 'text-white glow-white' : 'text-white/90'}`}>
+                    <div className="text-center px-2 sm:px-8 w-full">
+                      <div className="flex items-center justify-center gap-1.5 sm:gap-3 mb-1 sm:mb-2">
+                        <h3 className={`text-base sm:text-2xl font-bold font-orbitron tracking-widest uppercase truncate ${isCurrent ? 'text-white glow-white' : 'text-white/90'}`}>
                           {String(campaignIndex + 1).padStart(2, '0')}. {level.name}
                         </h3>
-                        <span className={`text-[10px] px-2 py-0.5 rounded-sm uppercase tracking-widest border border-white/10 ${diffColors[level.difficulty]}`}>
+                        <span className={`text-[9px] sm:text-[10px] px-1.5 sm:px-2 py-0.5 rounded-sm uppercase tracking-widest border border-white/10 shrink-0 ${diffColors[level.difficulty]}`}>
                           {level.difficulty}
                         </span>
                       </div>
-                      <p className="text-sm text-white/50 mb-6 leading-relaxed max-w-xl mx-auto h-10">
+                      <p className="text-xs sm:text-sm text-white/50 mb-3 sm:mb-6 leading-snug sm:leading-relaxed max-w-xl mx-auto h-auto min-h-[2.5rem]">
                         {level.description}
                       </p>
 
@@ -231,7 +229,7 @@ export const LevelSelectModal: React.FC<LevelSelectModalProps> = ({
                             onClose();
                           }
                         }}
-                        className={`w-full max-w-md mx-auto py-3.5 rounded-lg text-sm font-bold uppercase tracking-widest flex items-center justify-center gap-3 transition-all ${
+                        className={`w-full max-w-md mx-auto py-2.5 sm:py-3.5 rounded-lg text-[10px] sm:text-sm font-bold uppercase tracking-widest flex items-center justify-center gap-2 sm:gap-3 transition-all ${
                           isLocked 
                             ? 'bg-white/5 text-white/20 cursor-not-allowed border border-white/5'
                             : isCurrent
@@ -239,7 +237,7 @@ export const LevelSelectModal: React.FC<LevelSelectModalProps> = ({
                               : 'bg-white/10 text-white/90 hover:bg-white/20 hover:text-white hover:border-white/30 border border-white/10 cursor-pointer shadow-[0_0_15px_rgba(255,255,255,0.1)]'
                         }`}
                       >
-                        <Play className="w-4 h-4 fill-current" />
+                        <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current shrink-0" />
                         <span>{isLocked ? 'MISSION LOCKED' : isCurrent ? 'RESUME MISSION' : 'ENGAGE FLEET'}</span>
                       </button>
                     </div>
