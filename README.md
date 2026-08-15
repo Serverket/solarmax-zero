@@ -4,7 +4,7 @@
   <p><strong>A high-fidelity, offline-first PWA reimagining of the classic RTS gameplay.</strong></p>
   <p>
     <a href="LICENSE"><img src="https://img.shields.io/badge/License-GPLv3-blue.svg" alt="License: GPL v3"></a>
-    <img src="https://img.shields.io/badge/version-1.2.0-blue.svg" alt="Version">
+    <img src="https://img.shields.io/badge/version-1.3.0-blue.svg" alt="Version">
     <img src="https://img.shields.io/badge/bun-%3E%3D1.0.0-black.svg" alt="Bun">
     <img src="https://img.shields.io/badge/react-19.2.8-61dafb.svg" alt="React">
     <img src="https://img.shields.io/badge/vite-8.2.0-646cff.svg" alt="Vite">

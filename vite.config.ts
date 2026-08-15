@@ -21,9 +21,16 @@ export default defineConfig({
         orientation: 'landscape',
         icons: [
           {
-            src: 'pwa-64x64.png',
-            sizes: '64x64',
-            type: 'image/png'
+            src: 'pwa-icon.svg',
+            sizes: 'any',
+            type: 'image/svg+xml',
+            purpose: 'any'
+          },
+          {
+            src: 'maskable-icon.svg',
+            sizes: 'any',
+            type: 'image/svg+xml',
+            purpose: 'maskable'
           },
           {
             src: 'pwa-192x192.png',
