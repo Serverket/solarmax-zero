@@ -30,7 +30,7 @@ function mkPlanet(
 }
 
 function generateLevel(
-  id: string, name: string, description: string, difficulty: 'Easy' | 'Medium' | 'Hard' | 'Insane',
+  id: string, name: string, description: string, difficulty: 'Easy' | 'Medium' | 'Hard' | 'Insane' | 'LATAM',
   planets: Planet[], activeFactions: FactionId[]
 ): LevelConfig {
   // Auto-link portals cyclically
@@ -45,7 +45,7 @@ function generateLevel(
 
 // Helper to create symmetric 2-faction levels
 function twoFactionLevel(
-  id: string, name: string, desc: string, diff: 'Easy' | 'Medium' | 'Hard' | 'Insane',
+  id: string, name: string, desc: string, diff: 'Easy' | 'Medium' | 'Hard' | 'Insane' | 'LATAM',
   neutrals: { x: number; y: number; r: number; ships: number; max: number; type?: PlanetType }[]
 ): LevelConfig {
   planetIdCounter = 0;
@@ -425,6 +425,92 @@ export const CAMPAIGN_LEVELS: LevelConfig[] = [
       mkPlanet(800, 250, 22, 'neutral', 5, 30),
       mkPlanet(800, 550, 22, 'neutral', 5, 30),
     ], ['player', 'ai1', 'ai2', 'ai3', 'ai4']);
+  })(),
+];
+
+export const MOTHERSHIP_LEVELS: LevelConfig[] = [
+  (() => {
+    planetIdCounter = 0;
+    return generateLevel('m_lvl1', 'Awakening', 'A derelict mothership powers up.', 'Hard', [
+      mkPlanet(200, 400, 26, 'player', 15, 40),
+      mkPlanet(1000, 400, 26, 'ai1', 15, 40),
+      mkPlanet(600, 400, 60, 'neutral', 30, 150, 'mothership'),
+      mkPlanet(600, 200, 22, 'neutral', 5, 30),
+      mkPlanet(600, 600, 22, 'neutral', 5, 30),
+    ], ['player', 'ai1']);
+  })(),
+  (() => {
+    planetIdCounter = 0;
+    return generateLevel('m_lvl2', 'The Core', 'Control the twin motherships.', 'Hard', [
+      mkPlanet(600, 100, 30, 'player', 20, 50),
+      mkPlanet(600, 700, 30, 'ai2', 20, 50),
+      mkPlanet(350, 400, 50, 'neutral', 25, 120, 'mothership'),
+      mkPlanet(850, 400, 50, 'neutral', 25, 120, 'mothership'),
+      mkPlanet(200, 400, 24, 'neutral', 10, 35, 'turret'),
+      mkPlanet(1000, 400, 24, 'neutral', 10, 35, 'turret'),
+    ], ['player', 'ai2']);
+  })(),
+  (() => {
+    planetIdCounter = 0;
+    return generateLevel('m_lvl3', 'Dreadnoughts', 'Three factions, three colossi.', 'LATAM', [
+      mkPlanet(150, 200, 28, 'player', 50, 100),
+      mkPlanet(1050, 200, 28, 'ai1', 50, 100),
+      mkPlanet(600, 650, 28, 'ai3', 50, 100),
+      mkPlanet(300, 400, 55, 'neutral', 20, 130, 'mothership'),
+      mkPlanet(900, 400, 55, 'neutral', 20, 130, 'mothership'),
+      mkPlanet(600, 250, 55, 'neutral', 20, 130, 'mothership'),
+    ], ['player', 'ai1', 'ai3']);
+  })(),
+  (() => {
+    planetIdCounter = 0;
+    return generateLevel('m_lvl4', 'Garrison', 'A fortified mothership ring.', 'LATAM', [
+      mkPlanet(150, 400, 30, 'player', 50, 100),
+      mkPlanet(1050, 400, 30, 'ai4', 50, 100),
+      mkPlanet(600, 400, 70, 'ai1', 50, 200, 'mothership'),
+      mkPlanet(450, 250, 26, 'ai1', 15, 45, 'turret'),
+      mkPlanet(750, 250, 26, 'ai1', 15, 45, 'turret'),
+      mkPlanet(450, 550, 26, 'ai1', 15, 45, 'turret'),
+      mkPlanet(750, 550, 26, 'ai1', 15, 45, 'turret'),
+    ], ['player', 'ai1', 'ai4']);
+  })(),
+  (() => {
+    planetIdCounter = 0;
+    return generateLevel('m_lvl5', 'Warp Gate', 'Portals leading to massive power.', 'LATAM', [
+      mkPlanet(150, 400, 30, 'player', 20, 50),
+      mkPlanet(1050, 400, 30, 'ai2', 20, 50),
+      mkPlanet(350, 400, 26, 'neutral', 5, 40, 'portal'),
+      mkPlanet(850, 400, 26, 'neutral', 5, 40, 'portal'),
+      mkPlanet(600, 150, 60, 'neutral', 40, 180, 'mothership'),
+      mkPlanet(600, 650, 60, 'neutral', 40, 180, 'mothership'),
+    ], ['player', 'ai2']);
+  })(),
+  (() => {
+    planetIdCounter = 0;
+    return generateLevel('m_lvl6', 'Fleet Command', 'Four factions vying for ultimate control.', 'LATAM', [
+      mkPlanet(150, 150, 30, 'player', 25, 60),
+      mkPlanet(1050, 150, 30, 'ai1', 25, 60),
+      mkPlanet(150, 650, 30, 'ai2', 25, 60),
+      mkPlanet(1050, 650, 30, 'ai3', 25, 60),
+      mkPlanet(600, 400, 80, 'neutral', 60, 250, 'mothership'),
+      mkPlanet(600, 200, 26, 'neutral', 10, 40, 'turret'),
+      mkPlanet(600, 600, 26, 'neutral', 10, 40, 'turret'),
+      mkPlanet(400, 400, 26, 'neutral', 10, 40, 'turret'),
+      mkPlanet(800, 400, 26, 'neutral', 10, 40, 'turret'),
+    ], ['player', 'ai1', 'ai2', 'ai3']);
+  })(),
+  (() => {
+    planetIdCounter = 0;
+    return generateLevel('m_lvl7', 'The Zenith', 'The ultimate Mothership Armada.', 'LATAM', [
+      mkPlanet(600, 700, 60, 'player', 80, 200, 'mothership'),
+      mkPlanet(300, 150, 60, 'ai4', 30, 150, 'mothership'),
+      mkPlanet(600, 200, 70, 'ai4', 40, 200, 'mothership'),
+      mkPlanet(900, 150, 60, 'ai4', 30, 150, 'mothership'),
+      mkPlanet(300, 400, 26, 'neutral', 10, 45),
+      mkPlanet(900, 400, 26, 'neutral', 10, 45),
+      mkPlanet(600, 450, 26, 'neutral', 10, 45, 'turret'),
+      mkPlanet(200, 500, 24, 'neutral', 5, 35, 'portal'),
+      mkPlanet(1000, 500, 24, 'neutral', 5, 35, 'portal'),
+    ], ['player', 'ai4']);
   })(),
 ];
 

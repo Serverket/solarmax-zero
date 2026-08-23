@@ -63,6 +63,9 @@ export function updatePhysics(
     }
   });
 
+  const isMothershipLevel = nextPlanets.some(p => p.type === 'mothership');
+  const globalShipLimit = isMothershipLevel ? 1000 : 700;
+
   // 1. Planet production & turrets
   nextPlanets.forEach(planet => {
     planet.pulsePhase += sdt * 2;
@@ -73,7 +76,7 @@ export function updatePhysics(
       
       const shipAdd = planet.productionRate * prodMult * sdt;
       const factionTotal = factionTotals[planet.owner] || 0;
-      if (factionTotal < 700) {
+      if (factionTotal < globalShipLimit) {
         const oldShips = planet.ships;
         planet.ships += shipAdd;
         produced += Math.floor(planet.ships) - Math.floor(oldShips);

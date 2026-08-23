@@ -82,14 +82,14 @@ export interface LevelConfig {
   id: string;
   name: string;
   description: string;
-  difficulty: 'Easy' | 'Medium' | 'Hard' | 'Insane' | 'Custom';
+  difficulty: 'Easy' | 'Medium' | 'Hard' | 'Insane' | 'LATAM' | 'Custom';
   width: number;
   height: number;
   planets: Planet[];
   activeFactions: FactionId[];
 }
 
-export type GameState = 'menu' | 'playing' | 'paused' | 'victory' | 'defeat' | 'editor';
+export type GameState = 'menu' | 'playing' | 'paused' | 'victory' | 'defeat' | 'editor' | 'cinematic';
 
 export interface GameStats {
   shipsProduced: number;

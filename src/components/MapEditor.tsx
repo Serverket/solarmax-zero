@@ -6,14 +6,19 @@ import { Settings, Play, Trash2, Link as LinkIcon, Crosshair, Hexagon, Circle } 
 
 interface MapEditorProps {
   initialPlanets: Planet[];
-  onStartGame: (planets: Planet[]) => void;
+  initialMapId?: string;
+  initialMapName?: string;
+  onStartGame: (planets: Planet[], mapId?: string, mapName?: string) => void;
   onExit: () => void;
 }
 
-export const MapEditor: React.FC<MapEditorProps> = ({ initialPlanets, onStartGame, onExit }) => {
+export const MapEditor: React.FC<MapEditorProps> = ({ initialPlanets, initialMapId, initialMapName, onStartGame, onExit }) => {
   const [planets, setPlanets] = useState<Planet[]>(initialPlanets);
+  const [mapName, setMapName] = useState(initialMapName || `Custom Map ${new Date().toLocaleTimeString()}`);
   const [selectedPlanetId, setSelectedPlanetId] = useState<string | null>(null);
   const [tool, setTool] = useState<'select' | 'add_standard' | 'add_mothership' | 'add_turret' | 'add_portal' | 'link_portal' | 'delete'>('select');
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
   const handleEditorClick = (planetId: string | null, x: number, y: number) => {
     if (tool === 'delete' && planetId) {
@@ -73,6 +78,23 @@ export const MapEditor: React.FC<MapEditorProps> = ({ initialPlanets, onStartGam
 
     // Select mode
     setSelectedPlanetId(planetId);
+    if (tool === 'select' && planetId) {
+      const p = planets.find(p => p.id === planetId);
+      if (p) {
+        setIsDragging(true);
+        setDragOffset({ x: p.x - x, y: p.y - y });
+      }
+    }
+  };
+
+  const handleEditorPointerMove = (x: number, y: number) => {
+    if (tool === 'select' && isDragging && selectedPlanetId) {
+      updateSelected({ x: x + dragOffset.x, y: y + dragOffset.y });
+    }
+  };
+
+  const handleEditorPointerUp = () => {
+    setIsDragging(false);
   };
 
   const selectedPlanet = planets.find(p => p.id === selectedPlanetId);
@@ -99,6 +121,8 @@ export const MapEditor: React.FC<MapEditorProps> = ({ initialPlanets, onStartGam
           onLaunchFleets={() => {}}
           isEditorMode={true}
           onEditorClick={handleEditorClick}
+          onEditorPointerMove={handleEditorPointerMove}
+          onEditorPointerUp={handleEditorPointerUp}
         />
         
         {/* Draw Link Lines for Portals */}
@@ -121,7 +145,14 @@ export const MapEditor: React.FC<MapEditorProps> = ({ initialPlanets, onStartGam
       <div className="relative z-10 glass-panel-glow-white bg-black/50 p-2 sm:p-4 pt-[max(env(safe-area-inset-top),0.5rem)] flex flex-nowrap gap-2 sm:gap-4 justify-between items-center border-b border-white/10 shadow-lg overflow-x-auto no-scrollbar">
         <div className="flex items-center gap-4">
           <Settings className="w-5 h-5 text-white/50" />
-          <h1 className="text-xl font-orbitron font-bold text-white tracking-widest uppercase glow-white hidden sm:block">Map Editor</h1>
+          <input 
+            type="text" 
+            value={mapName}
+            onChange={(e) => setMapName(e.target.value)}
+            className="text-xl font-orbitron font-bold text-white tracking-widest uppercase bg-transparent border-b border-white/20 focus:border-white outline-none w-48 sm:w-64 glow-white hidden sm:block"
+            placeholder="MAP NAME"
+            maxLength={30}
+          />
         </div>
         
         <div className="flex flex-nowrap justify-center gap-1 sm:gap-2 shrink-0">
@@ -167,8 +198,25 @@ export const MapEditor: React.FC<MapEditorProps> = ({ initialPlanets, onStartGam
           <button onClick={onExit} className="px-4 sm:px-6 py-2 rounded bg-white/10 hover:bg-white/20 text-white text-xs font-bold uppercase tracking-widest transition-all">
             Cancel
           </button>
-          <button onClick={() => onStartGame(planets)} className="px-4 sm:px-6 py-2 rounded bg-white hover:bg-gray-200 text-black text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(255,255,255,0.4)]">
-            <Play className="w-4 h-4 fill-current" /> <span className="hidden sm:inline">Initialize</span>
+          <button 
+            onClick={() => {
+              const hasPlayer = planets.some(p => p.owner === 'player');
+              const hasEnemy = planets.some(p => p.owner !== 'player' && p.owner !== 'neutral');
+              
+              if (!hasPlayer) {
+                alert("Invalid Map: You must place at least one player (blue) planet.");
+                return;
+              }
+              if (!hasEnemy) {
+                alert("Invalid Map: You must place at least one enemy planet.");
+                return;
+              }
+              
+              onStartGame(planets, initialMapId, mapName);
+            }} 
+            className="px-4 sm:px-6 py-2 rounded bg-white hover:bg-gray-200 text-black text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(255,255,255,0.4)]"
+          >
+            <Play className="w-4 h-4 fill-current" /> <span className="hidden sm:inline">{initialMapId ? 'Save & Play' : 'Initialize'}</span>
           </button>
         </div>
       </div>
@@ -194,12 +242,28 @@ export const MapEditor: React.FC<MapEditorProps> = ({ initialPlanets, onStartGam
           </div>
 
           <div>
-            <label className="text-[10px] text-white/50 tracking-widest uppercase block mb-1">Radius (Size)</label>
+            <label className="text-[10px] text-white/50 tracking-widest uppercase flex justify-between mb-1">
+              <span>Radius (Size)</span>
+              <span>{selectedPlanet.radius}</span>
+            </label>
             <input 
               type="range" min="15" max="60" 
               value={selectedPlanet.radius} 
               onChange={e => updateSelected({ radius: parseInt(e.target.value), productionRate: parseInt(e.target.value) / 10 })}
               className="w-full accent-white h-1 bg-white/20 appearance-none rounded"
+            />
+          </div>
+
+          <div>
+            <label className="text-[10px] text-white/50 tracking-widest uppercase flex justify-between mb-1">
+              <span>Starting Ships</span>
+              <span>{Math.floor(selectedPlanet.ships)} / {selectedPlanet.maxShips}</span>
+            </label>
+            <input 
+              type="range" min="0" max={selectedPlanet.maxShips} 
+              value={Math.floor(selectedPlanet.ships)} 
+              onChange={e => updateSelected({ ships: parseInt(e.target.value) })}
+              className="w-full accent-[#00f0ff] h-1 bg-white/20 appearance-none rounded"
             />
           </div>
 

@@ -8,11 +8,12 @@ import { InstallBanner } from './components/InstallBanner';
 import { ReloadPrompt } from './components/ReloadPrompt';
 import { NowPlaying } from './components/NowPlaying';
 import { SettingsMenu } from './components/SettingsMenu';
+import { CinematicOverlay } from './components/CinematicOverlay';
 import { updatePhysics, launchFleets, runAIDecisions, type PhysicsEngineState } from './engine/physics';
-import { CAMPAIGN_LEVELS } from './utils/levels';
+import { CAMPAIGN_LEVELS, MOTHERSHIP_LEVELS } from './utils/levels';
 import { sound } from './utils/sound';
 import { music } from './utils/music';
-import { setUnlockedLevel, saveCustomMap } from './utils/storage';
+import { setUnlockedLevel, saveCustomMap, unlockMothership, getMothershipUnlocked } from './utils/storage';
 import type { LevelConfig, Planet, GameState } from './types/game';
 
 function initLevel(level: LevelConfig): PhysicsEngineState {
@@ -55,6 +56,9 @@ function App() {
   const [victory, setVictory] = useState(false);
   const [sfxVolume, setSfxVolume] = useState(0.8);
   const [musicVolume, setMusicVolume] = useState(0.3);
+  
+  const [editorMapId, setEditorMapId] = useState<string | null>(null);
+  const [editorMapName, setEditorMapName] = useState<string | undefined>(undefined);
 
   useEffect(() => { sound.setVolume(sfxVolume); }, [sfxVolume]);
   useEffect(() => { music.setVolume(musicVolume); }, [musicVolume]);
@@ -109,15 +113,22 @@ function App() {
           setGameState('defeat');
           sound.playDefeat();
         } else if (!areEnemiesAlive) {
-          setVictory(true);
-          setShowVictory(true);
-          setGameState('victory');
-          sound.playVictory();
-          
-          // Save progression if campaign level
-          const currentIdx = CAMPAIGN_LEVELS.findIndex(l => l.id === currentLevel.id);
-          if (currentIdx >= 0) {
-            setUnlockedLevel(currentIdx + 2); // unlock next level (1-indexed)
+          if (currentLevel.id === 'lvl36') {
+            // Trigger the cinematic shockwave sequence once for lvl36
+            setGameState('cinematic');
+            sound.playVictory(); // Or a custom deep bass drop if added to sound manager
+            if (!getMothershipUnlocked()) unlockMothership();
+          } else {
+            setVictory(true);
+            setShowVictory(true);
+            setGameState('victory');
+            sound.playVictory();
+            
+            // Save progression if campaign level
+            const currentIdx = CAMPAIGN_LEVELS.findIndex(l => l.id === currentLevel.id);
+            if (currentIdx >= 0) {
+              setUnlockedLevel(currentIdx + 2); // unlock next level (1-indexed)
+            }
           }
         }
 
@@ -178,8 +189,21 @@ function App() {
   };
 
   const handleNextLevel = () => {
-    const idx = CAMPAIGN_LEVELS.findIndex(l => l.id === currentLevel.id);
-    const next = CAMPAIGN_LEVELS[(idx + 1) % CAMPAIGN_LEVELS.length];
+    let next;
+    const isMothership = currentLevel.id.startsWith('m_lvl');
+    
+    if (isMothership) {
+      const idx = MOTHERSHIP_LEVELS.findIndex(l => l.id === currentLevel.id);
+      next = MOTHERSHIP_LEVELS[(idx + 1) % MOTHERSHIP_LEVELS.length];
+    } else {
+      const idx = CAMPAIGN_LEVELS.findIndex(l => l.id === currentLevel.id);
+      if (currentLevel.id === 'lvl36') {
+        // Transition to Mothership campaign!
+        next = MOTHERSHIP_LEVELS[0];
+      } else {
+        next = CAMPAIGN_LEVELS[(idx + 1) % CAMPAIGN_LEVELS.length];
+      }
+    }
     handleSelectLevel(next);
   };
 
@@ -230,22 +254,46 @@ function App() {
         </>
       ) : null}
 
+      {gameState === 'cinematic' && (
+        <>
+          <GameCanvas
+            planets={physicsState.planets}
+            ships={physicsState.ships}
+            sparks={physicsState.sparks}
+            lasers={physicsState.lasers}
+            screenShake={physicsState.screenShake}
+            selectedPlanetIds={[]}
+            onSelectPlanets={() => {}}
+            onLaunchFleets={() => {}}
+          />
+          <CinematicOverlay 
+            onComplete={() => {
+              setVictory(true);
+              setShowVictory(true);
+              setGameState('victory');
+            }} 
+          />
+        </>
+      )}
+
       {gameState === 'editor' && (
         <MapEditor
           initialPlanets={physicsState.planets}
-          onStartGame={(planets) => {
-            const mapId = `custom-${Date.now()}`;
-            const mapName = `Custom Map ${new Date().toLocaleTimeString()}`;
+          initialMapId={editorMapId || undefined}
+          initialMapName={editorMapName}
+          onStartGame={(planets, mapId, mapName) => {
+            const finalMapId = mapId || `custom-${Date.now()}`;
+            const finalMapName = mapName || `Custom Map ${new Date().toLocaleTimeString()}`;
             
             saveCustomMap({
-              id: mapId,
-              name: mapName,
+              id: finalMapId,
+              name: finalMapName,
               planets
             });
 
             const level: LevelConfig = {
-              id: mapId,
-              name: mapName,
+              id: finalMapId,
+              name: finalMapName,
               description: 'User created map.',
               difficulty: 'Custom',
               width: 1200,
@@ -269,14 +317,33 @@ function App() {
           onSelectLevel={handleSelectLevel}
           currentLevelId={currentLevel.id}
           isGameActive={gameState === 'playing'}
-          onOpenMapEditor={() => {
-            // Seed editor with random level
-            import('./utils/levels').then(({ generateRandomLevel }) => {
-              const baseLevel = generateRandomLevel(3, 8);
-              setPhysicsState(initLevel(baseLevel));
+          onOpenMapEditor={(mapToEdit) => {
+            if (mapToEdit) {
+              setEditorMapId(mapToEdit.id);
+              setEditorMapName(mapToEdit.name);
+              setPhysicsState(initLevel({
+                id: mapToEdit.id,
+                name: mapToEdit.name,
+                description: 'Custom',
+                difficulty: 'Custom',
+                width: 1200,
+                height: 800,
+                planets: mapToEdit.planets,
+                activeFactions: []
+              }));
               setGameState('editor');
               setShowLevelSelect(false);
-            });
+            } else {
+              setEditorMapId(null);
+              setEditorMapName(undefined);
+              // Seed editor with random level
+              import('./utils/levels').then(({ generateRandomLevel }) => {
+                const baseLevel = generateRandomLevel(3, 8);
+                setPhysicsState(initLevel(baseLevel));
+                setGameState('editor');
+                setShowLevelSelect(false);
+              });
+            }
           }}
         />
       )}

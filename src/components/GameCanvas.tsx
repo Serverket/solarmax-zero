@@ -14,6 +14,8 @@ interface GameCanvasProps {
   onLaunchFleets: (sourceIds: string[], targetId: string) => void;
   isEditorMode?: boolean;
   onEditorClick?: (planetId: string | null, x: number, y: number) => void;
+  onEditorPointerMove?: (x: number, y: number) => void;
+  onEditorPointerUp?: () => void;
 }
 
 export const GameCanvas: React.FC<GameCanvasProps> = ({
@@ -27,6 +29,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   onLaunchFleets,
   isEditorMode = false,
   onEditorClick,
+  onEditorPointerMove,
+  onEditorPointerUp,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -237,8 +241,11 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   };
 
   const handlePointerMove = (e: React.MouseEvent | React.TouchEvent) => {
-    if (isEditorMode) return;
     const coords = getCanvasCoords(e);
+    if (isEditorMode) {
+       onEditorPointerMove?.(coords.x, coords.y);
+       return;
+    }
     setDragCurrent(coords);
 
     const hovered = getPlanetAt(coords.x, coords.y, 8);
@@ -253,7 +260,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   };
 
   const handlePointerUp = (e: React.MouseEvent | React.TouchEvent) => {
-    if (isEditorMode) return;
+    if (isEditorMode) {
+       onEditorPointerUp?.();
+       return;
+    }
     if (!dragStart || !dragCurrent) return;
 
     const endCoords = getCanvasCoords(e);

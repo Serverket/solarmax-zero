@@ -2,7 +2,8 @@ import type { Planet } from '../types/game';
 
 export const StorageKeys = {
   UNLOCKED_LEVEL: 'solarmax_unlocked_level',
-  CUSTOM_MAPS: 'solarmax_custom_maps'
+  CUSTOM_MAPS: 'solarmax_custom_maps',
+  MOTHERSHIP_UNLOCKED: 'solarmax_mothership_unlocked'
 };
 
 export const getUnlockedLevel = (): number => {
@@ -23,6 +24,20 @@ export const setUnlockedLevel = (level: number): void => {
   } catch {
     // Ignore storage errors in incognito/restricted modes
   }
+};
+
+export const getMothershipUnlocked = (): boolean => {
+  try {
+    return localStorage.getItem(StorageKeys.MOTHERSHIP_UNLOCKED) === 'true';
+  } catch {
+    return false;
+  }
+};
+
+export const unlockMothership = (): void => {
+  try {
+    localStorage.setItem(StorageKeys.MOTHERSHIP_UNLOCKED, 'true');
+  } catch {}
 };
 
 export interface CustomMap {

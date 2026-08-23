@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Play, X, Swords, Layers, Settings, Trash2, Map, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { LevelConfig } from '../types/game';
-import { CAMPAIGN_LEVELS, generateRandomLevel } from '../utils/levels';
+import { CAMPAIGN_LEVELS, MOTHERSHIP_LEVELS, generateRandomLevel } from '../utils/levels';
 import { GAME_VERSION, GAME_NAME } from '../utils/version';
-import { getUnlockedLevel, getCustomMaps, deleteCustomMap, type CustomMap } from '../utils/storage';
+import { getUnlockedLevel, getCustomMaps, deleteCustomMap, getMothershipUnlocked, type CustomMap } from '../utils/storage';
 import { FACTIONS } from '../utils/levels';
 
 interface LevelSelectModalProps {
@@ -12,7 +12,7 @@ interface LevelSelectModalProps {
   onSelectLevel: (level: LevelConfig) => void;
   currentLevelId: string;
   isGameActive?: boolean;
-  onOpenMapEditor?: () => void;
+  onOpenMapEditor?: (map?: CustomMap) => void;
 }
 
 export const LevelSelectModal: React.FC<LevelSelectModalProps> = ({
@@ -24,19 +24,28 @@ export const LevelSelectModal: React.FC<LevelSelectModalProps> = ({
   onOpenMapEditor,
 }) => {
   const [tab, setTab] = useState<'campaign' | 'skirmish' | 'custom'>('campaign');
+  const [activeSector, setActiveSector] = useState<'origin' | 'mothership'>('origin');
   const [skirmishFactions, setSkirmishFactions] = useState<number>(3);
   const [skirmishPlanets, setSkirmishPlanets] = useState<number>(10);
   
   // Local storage state
   const unlockedLevel = getUnlockedLevel();
+  const isMothershipUnlocked = getMothershipUnlocked();
   const [customMaps, setCustomMaps] = useState<CustomMap[]>(getCustomMaps());
   
   const [campaignIndex, setCampaignIndex] = useState(0);
 
   useEffect(() => {
     if (isOpen) {
-      const idx = CAMPAIGN_LEVELS.findIndex(l => l.id === currentLevelId);
-      setCampaignIndex(Math.max(0, idx));
+      if (currentLevelId.startsWith('m_lvl')) {
+        setActiveSector('mothership');
+        const idx = MOTHERSHIP_LEVELS.findIndex(l => l.id === currentLevelId);
+        setCampaignIndex(Math.max(0, idx));
+      } else {
+        setActiveSector('origin');
+        const idx = CAMPAIGN_LEVELS.findIndex(l => l.id === currentLevelId);
+        setCampaignIndex(Math.max(0, idx));
+      }
     }
   }, [isOpen, currentLevelId]);
 
@@ -53,19 +62,23 @@ export const LevelSelectModal: React.FC<LevelSelectModalProps> = ({
     Medium: 'text-yellow-400 bg-yellow-500/10',
     Hard: 'text-orange-400 bg-orange-500/10',
     Insane: 'text-red-400 bg-red-500/10',
+    LATAM: 'text-white bg-[linear-gradient(110deg,#FCD116_0%,#FCD116_33.333%,#003893_33.333%,#003893_66.666%,#CE1126_66.666%,#CE1126_100%)] border-none shadow-[0_0_15px_rgba(252,209,22,0.4)] font-bold',
   };
 
+  const isDarkSector = activeSector === 'mothership' && tab === 'campaign';
+  const themeGlow = isDarkSector ? 'shadow-[0_0_20px_rgba(200,0,255,0.2)] border-[rgba(200,0,255,0.4)] text-[rgba(255,100,255,1)]' : 'shadow-[0_0_20px_rgba(255,255,255,0.2)] glass-panel-glow-white text-white border-white/50';
+
   return (
-    <div className="fixed inset-0 z-50 flex flex-col p-2 sm:p-4 bg-black/80 backdrop-blur-md overflow-y-auto no-scrollbar">
-      <div className="flex flex-col items-center justify-center relative mt-4 sm:mt-0 mb-2 sm:mb-8 w-full max-w-4xl mx-auto shrink-0 my-auto sm:my-0">
-        <img src="/favicon.svg" alt="Logo" className="w-28 h-28 mb-4 drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]" />
-        <h2 className="text-4xl font-black text-white font-orbitron tracking-[0.2em] uppercase mb-1 drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]">
+    <div className={`fixed inset-0 z-50 flex flex-col p-2 sm:p-4 bg-black/80 backdrop-blur-md overflow-y-auto no-scrollbar transition-colors duration-1000 ${isDarkSector ? 'bg-[#1a001a]/90' : ''}`}>
+      <div className="flex flex-col items-center justify-center relative mt-4 sm:mt-0 mb-2 sm:mb-8 w-full max-w-4xl mx-auto shrink-0 my-auto sm:my-0 transition-all duration-1000">
+        <img src="/favicon.svg" alt="Logo" className={`w-28 h-28 mb-4 transition-all duration-1000 ${isDarkSector ? 'drop-shadow-[0_0_25px_rgba(200,0,255,0.8)] hue-rotate-90' : 'drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]'}`} />
+        <h2 className={`text-4xl font-black font-orbitron tracking-[0.2em] uppercase mb-1 transition-colors duration-1000 ${isDarkSector ? 'text-[#ff55ff] drop-shadow-[0_0_15px_rgba(255,0,255,0.6)]' : 'text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]'}`}>
           {GAME_NAME}
         </h2>
         <span className="text-[10px] sm:text-xs text-white/50 font-mono tracking-widest">v{GAME_VERSION}</span>
       </div>
 
-      <div className="w-full max-w-4xl mx-auto glass-panel rounded-2xl p-2 sm:p-6 flex flex-col shrink-0 mb-4 sm:mb-0 relative">
+      <div className={`w-full max-w-4xl mx-auto glass-panel rounded-2xl p-2 sm:p-6 flex flex-col shrink-0 mb-4 sm:mb-0 relative transition-all duration-1000 ${isDarkSector ? 'bg-[rgba(20,0,20,0.8)] border-[rgba(200,0,255,0.2)] shadow-[0_0_40px_rgba(150,0,200,0.3)]' : ''}`}>
         {/* Close button absolutely positioned on the right of the whole modal, on mobile it can go to the top right of the screen or header */}
         {isGameActive && (
           <button
@@ -82,7 +95,7 @@ export const LevelSelectModal: React.FC<LevelSelectModalProps> = ({
             onClick={() => setTab('campaign')}
             className={`flex-1 py-2 sm:py-3 rounded-md sm:rounded-lg text-[10px] sm:text-sm font-bold uppercase tracking-widest transition-all cursor-pointer flex items-center justify-center gap-1.5 sm:gap-2 border ${
               tab === 'campaign' 
-                ? 'glass-panel-glow-white text-white border-white/50 shadow-[0_0_20px_rgba(255,255,255,0.2)]' 
+                ? themeGlow
                 : 'bg-black/20 text-white/40 hover:bg-white/5 hover:text-white/80 border-white/5'
             }`}
           >
@@ -116,14 +129,38 @@ export const LevelSelectModal: React.FC<LevelSelectModalProps> = ({
         {tab === 'campaign' ? (
           <div className="flex flex-col items-center flex-1 w-full pb-4 px-2">
             
+            {/* Sector Toggle */}
+            {isMothershipUnlocked && (
+              <div className="flex bg-black/40 border border-white/10 rounded-full p-1 mb-6 mt-2 relative w-full max-w-sm shrink-0 shadow-[inset_0_0_10px_rgba(0,0,0,0.8)]">
+                <div 
+                  className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full transition-all duration-500 ease-out ${
+                    activeSector === 'origin' ? 'left-1 bg-cyan-500/20 shadow-[0_0_15px_rgba(0,240,255,0.4)]' : 'translate-x-full left-1 bg-purple-600/30 shadow-[0_0_20px_rgba(200,0,255,0.5)]'
+                  }`}
+                />
+                <button
+                  onClick={() => { setActiveSector('origin'); setCampaignIndex(0); }}
+                  className={`flex-1 py-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-widest z-10 transition-colors ${activeSector === 'origin' ? 'text-white text-shadow-[0_0_5px_rgba(255,255,255,0.8)]' : 'text-white/40 hover:text-white/80'}`}
+                >
+                  Origin System
+                </button>
+                <button
+                  onClick={() => { setActiveSector('mothership'); setCampaignIndex(0); }}
+                  className={`flex-1 py-1.5 text-[10px] sm:text-xs font-bold uppercase tracking-widest z-10 transition-colors ${activeSector === 'mothership' ? 'text-[#ffddff] text-shadow-[0_0_10px_rgba(255,100,255,0.8)]' : 'text-white/40 hover:text-white/80'}`}
+                >
+                  Mothership Sector
+                </button>
+              </div>
+            )}
+
             {/* The Main Viewport for Slider */}
             <div className="relative w-full max-w-3xl flex-1 flex items-center justify-center">
 
               {/* Center Content */}
               {(() => {
-                const level = CAMPAIGN_LEVELS[campaignIndex];
+                const currentLevelArray = activeSector === 'origin' ? CAMPAIGN_LEVELS : MOTHERSHIP_LEVELS;
+                const level = currentLevelArray[campaignIndex];
                 const isCurrent = level.id === currentLevelId;
-                const isLocked = (campaignIndex + 1) > unlockedLevel;
+                const isLocked = activeSector === 'origin' ? (campaignIndex + 1) > unlockedLevel : false; // Mothership levels are all unlocked if you reach them, or can add logic later.
 
                 // Generate constellation lines
                 const lines: {x1:number, y1:number, x2:number, y2:number}[] = [];
@@ -149,7 +186,7 @@ export const LevelSelectModal: React.FC<LevelSelectModalProps> = ({
                       
                       {/* Left Arrow */}
                       <button 
-                        onClick={() => setCampaignIndex(prev => (prev > 0 ? prev - 1 : CAMPAIGN_LEVELS.length - 1))}
+                        onClick={() => setCampaignIndex(prev => (prev > 0 ? prev - 1 : currentLevelArray.length - 1))}
                         className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-20 p-1 sm:p-2 rounded-full bg-black/40 hover:bg-white/10 text-white/50 hover:text-white transition-all cursor-pointer backdrop-blur-sm border border-white/10 opacity-100 group-hover:opacity-100"
                       >
                         <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -157,7 +194,7 @@ export const LevelSelectModal: React.FC<LevelSelectModalProps> = ({
 
                       {/* Right Arrow */}
                       <button 
-                        onClick={() => setCampaignIndex(prev => (prev < CAMPAIGN_LEVELS.length - 1 ? prev + 1 : 0))}
+                        onClick={() => setCampaignIndex(prev => (prev < currentLevelArray.length - 1 ? prev + 1 : 0))}
                         className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-20 p-1 sm:p-2 rounded-full bg-black/40 hover:bg-white/10 text-white/50 hover:text-white transition-all cursor-pointer backdrop-blur-sm border border-white/10 opacity-100 group-hover:opacity-100"
                       >
                         <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -165,7 +202,7 @@ export const LevelSelectModal: React.FC<LevelSelectModalProps> = ({
 
                       <svg 
                         viewBox={`0 0 ${level.width} ${level.height}`} 
-                        className="absolute inset-0 w-full h-full drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]"
+                        className={`absolute inset-0 w-full h-full drop-shadow-[0_0_10px_rgba(255,255,255,0.2)] transition-all duration-1000 ${isDarkSector ? 'hue-rotate-180 drop-shadow-[0_0_15px_rgba(200,0,255,0.4)]' : ''}`}
                         preserveAspectRatio="xMidYMid meet"
                       >
                         {/* Lines */}
@@ -251,15 +288,15 @@ export const LevelSelectModal: React.FC<LevelSelectModalProps> = ({
             </div>
 
             {/* Pagination Dots */}
-            <div className="flex gap-1.5 mt-6">
-              {CAMPAIGN_LEVELS.map((_, i) => (
+            <div className="flex gap-1.5 mt-6 flex-wrap justify-center max-w-lg">
+              {(activeSector === 'origin' ? CAMPAIGN_LEVELS : MOTHERSHIP_LEVELS).map((_, i) => (
                 <button
                   key={`dot-${i}`}
                   onClick={() => setCampaignIndex(i)}
                   className={`h-1.5 rounded-full transition-all cursor-pointer ${
                     i === campaignIndex 
-                      ? 'w-6 bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.8)]' 
-                      : i < unlockedLevel ? 'w-1.5 bg-white/40 hover:bg-white/60' : 'w-1.5 bg-white/10 hover:bg-white/20'
+                      ? (isDarkSector ? 'w-6 bg-purple-400 shadow-[0_0_10px_rgba(200,0,255,0.8)]' : 'w-6 bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.8)]')
+                      : (activeSector === 'origin' && i < unlockedLevel) || activeSector === 'mothership' ? 'w-1.5 bg-white/40 hover:bg-white/60' : 'w-1.5 bg-white/10 hover:bg-white/20'
                   }`}
                 />
               ))}
@@ -366,6 +403,16 @@ export const LevelSelectModal: React.FC<LevelSelectModalProps> = ({
                           className="flex-1 py-2 rounded bg-white text-black text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-gray-200"
                         >
                           <Play className="w-4 h-4 fill-current" /> Play
+                        </button>
+                        <button
+                          onClick={() => {
+                            onOpenMapEditor?.(m);
+                            onClose();
+                          }}
+                          className="px-4 py-2 rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-white transition-colors flex items-center justify-center"
+                          title="Edit Map"
+                        >
+                          <Settings className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => {

@@ -85,6 +85,23 @@ body, html, #root {
   100% { transform: translateY(100vh); }
 }
 
+@keyframes shake-extreme {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  10% { transform: translate(-10px, -10px) rotate(-2deg); }
+  20% { transform: translate(15px, 5px) rotate(2deg); }
+  30% { transform: translate(-15px, 15px) rotate(-1deg); }
+  40% { transform: translate(10px, -15px) rotate(3deg); }
+  50% { transform: translate(-10px, 10px) rotate(-2deg); }
+  60% { transform: translate(15px, -10px) rotate(1deg); }
+  70% { transform: translate(-15px, -15px) rotate(-3deg); }
+  80% { transform: translate(10px, 15px) rotate(2deg); }
+  90% { transform: translate(-10px, -5px) rotate(-1deg); }
+}
+
+.animate-shake-extreme {
+  animation: shake-extreme 0.1s ease-in-out infinite;
+}
+
 .scanline {
   position: absolute;
   top: 0; left: 0; right: 0; height: 2px;
