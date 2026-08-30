@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [1.7.0] - 2026-08-30
+### Added
+- **Serverless Backend Infrastructure**: Integrated Supabase GoTrue Auth and PostgREST for direct database connectivity.
+- **Post-Quantum Authentication**: Implemented a dual-layer cryptographic pipeline using WebCrypto SHA-384 client-side hashing to protect raw passwords prior to TLS transmission.
+- **Cloud Map Sync**: Custom Maps created in the Map Editor are now natively serialized and synced to the cloud, preventing data loss across devices.
+- **Last Played Memory**: The game now intelligentally caches the active session state, automatically resuming at the most recent level rather than resetting to Level 1.
+- **Role-Based Access Control (RBAC)**: Added an Admin Dashboard strictly accessible to users with the `admin` profile role in the database.
+
+### Fixed
+- **PWA Install Banner**: Corrected the installation banner to display the official SVG game logo instead of a CSS mockup.
+- Resolved Vercel deployment blockades by enabling framework-agnostic environment variable prefixing (`SUPABASE_`).
 
 ## [1.0.0] - 2026-08-13 (Project Rename: Solarmax Zero)
 ### Added

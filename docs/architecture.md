@@ -72,3 +72,35 @@ The AI evaluates the battlefield every ~0.8 seconds to make decisions, mimicking
   - Dynamically injects the new version number into `package.json` and the Markdown Badges in `README.md`.
   - Executes git commits and tags natively.
 - **No Gaps**: There are 0 outstanding TypeScript compilation errors and 0 terminal ESLint errors. The codebase is hermetically sealed.
+
+---
+
+## 7. Backend & Cryptography (Supabase)
+The game utilizes a fully serverless architecture powered by Supabase, integrating direct database connectivity with zero middleware.
+
+### 7.1 Cloud Sync Engine
+- **Custom Maps**: Serialized JSON payloads of user-generated maps are automatically upserted into the `game_progress` table via `storage.ts`.
+- **Last Played Memory**: The active game state (highest unlocked level, current mothership campaign status) is seamlessly merged between the local browser cache and the cloud upon authentication.
+
+### 7.2 Post-Quantum Authentication Protocol
+To protect player credentials against brute-force and theoretical quantum-computing attacks, the system employs a dual-layer cryptographic architecture. Raw passwords are never transmitted over the network.
+
+```mermaid
+sequenceDiagram
+    participant User as Browser (React/Vite)
+    participant Crypto as WebCrypto (SHA-384)
+    participant GoTrue as Supabase Auth (Edge)
+    participant DB as Postgres (auth.users)
+    
+    User->>Crypto: User types raw password
+    Note over Crypto: Enters Post-Quantum Engine<br/>crypto.subtle.digest('SHA-384')
+    Crypto-->>User: Returns 384-bit Hexadecimal Hash
+    User->>GoTrue: Transmit Hash via TLS 1.3
+    GoTrue->>GoTrue: Apply Server-Side Bcrypt Hashing
+    GoTrue->>DB: Store/Validate Bcrypt(SHA384_Hash)
+    DB-->>User: Issue JWT Access Token
+```
+
+- **Client-Side Hash**: Before a login or signup request is fired, the frontend uses native `crypto.subtle` to shred the password into a 384-bit hash. 
+- **Server-Side Hash**: Supabase's GoTrue engine receives the hash and applies `bcrypt` before storing it.
+- **Zero Caveats Migration**: A headless script was utilized to instantly rotate and migrate old, plain-text passwords into this new protocol via the Supabase Service Role, preventing user lockouts.

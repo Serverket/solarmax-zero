@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldAlert, Users, Database, RefreshCw, ChevronLeft, Activity, ShieldCheck, Zap } from 'lucide-react';
+import { ShieldAlert, Users, Database, RefreshCw, ChevronLeft, Activity, ShieldCheck, Zap, X } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 interface AdminDashboardProps {
