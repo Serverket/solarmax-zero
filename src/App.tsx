@@ -365,8 +365,6 @@ function App() {
           onSelectLevel={handleSelectLevel}
           currentLevelId={currentLevel.id}
           isGameActive={gameState === 'playing'}
-          onOpenAuth={() => setShowAuthModal(true)}
-          onOpenAdmin={() => setShowAdminDashboard(true)}
           onOpenMapEditor={(mapToEdit) => {
             if (mapToEdit) {
               setEditorMapId(mapToEdit.id);

@@ -14,8 +14,6 @@ interface LevelSelectModalProps {
   isGameActive?: boolean;
   onOpenMapEditor?: (map?: CustomMap) => void;
   settingsMenu?: React.ReactNode;
-  onOpenAuth?: () => void;
-  onOpenAdmin?: () => void;
 }
 
 export const LevelSelectModal: React.FC<LevelSelectModalProps> = ({
@@ -26,8 +24,6 @@ export const LevelSelectModal: React.FC<LevelSelectModalProps> = ({
   isGameActive,
   onOpenMapEditor,
   settingsMenu,
-  onOpenAuth,
-  onOpenAdmin,
 }) => {
   const [tab, setTab] = useState<'campaign' | 'skirmish' | 'custom'>('campaign');
   const [activeSector, setActiveSector] = useState<'origin' | 'mothership'>('origin');
