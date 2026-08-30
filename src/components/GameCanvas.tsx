@@ -166,9 +166,13 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     const offsetX = (rect.width - visualWidth) / 2;
     const offsetY = (rect.height - visualHeight) / 2;
     
+    // Base logical coordinates
+    const rawX = (clientX - rect.left - offsetX) / scale;
+    const rawY = (clientY - rect.top - offsetY) / scale;
+
     return {
-      x: (clientX - rect.left - offsetX) / scale,
-      y: (clientY - rect.top - offsetY) / scale,
+      x: rawX,
+      y: rawY,
     };
   }, []);
 

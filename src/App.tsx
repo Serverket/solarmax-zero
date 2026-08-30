@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { GameCanvas } from './components/GameCanvas';
 import { HUD } from './components/HUD';
 import { LevelSelectModal } from './components/LevelSelectModal';
@@ -9,11 +9,14 @@ import { ReloadPrompt } from './components/ReloadPrompt';
 import { NowPlaying } from './components/NowPlaying';
 import { SettingsMenu } from './components/SettingsMenu';
 import { CinematicOverlay } from './components/CinematicOverlay';
+import { AuthModal } from './components/AuthModal';
+import { AdminDashboard } from './components/AdminDashboard';
 import { updatePhysics, launchFleets, runAIDecisions, type PhysicsEngineState } from './engine/physics';
 import { CAMPAIGN_LEVELS, MOTHERSHIP_LEVELS } from './utils/levels';
 import { sound } from './utils/sound';
 import { music } from './utils/music';
-import { setUnlockedLevel, saveCustomMap, unlockMothership, getMothershipUnlocked } from './utils/storage';
+import { setUnlockedLevel, saveCustomMap, unlockMothership, getMothershipUnlocked, syncProgressFromCloud, getLastPlayedLevel, setLastPlayedLevel } from './utils/storage';
+import { isSupabaseConfigured, supabase } from './lib/supabase';
 import type { LevelConfig, Planet, GameState } from './types/game';
 
 function initLevel(level: LevelConfig): PhysicsEngineState {
@@ -44,8 +47,24 @@ function initLevel(level: LevelConfig): PhysicsEngineState {
 
 function App() {
   const [gameState, setGameState] = useState<GameState>('menu');
-  const [currentLevel, setCurrentLevel] = useState<LevelConfig>(CAMPAIGN_LEVELS[0]);
-  const [physicsState, setPhysicsState] = useState<PhysicsEngineState>(() => initLevel(CAMPAIGN_LEVELS[0]));
+  
+  // Find the last played level or default to the first level
+  const initialLevel = useMemo(() => {
+    const lastId = getLastPlayedLevel();
+    if (lastId) {
+      if (lastId.startsWith('m_lvl')) {
+        const mLevel = MOTHERSHIP_LEVELS.find(l => l.id === lastId);
+        if (mLevel) return mLevel;
+      } else {
+        const cLevel = CAMPAIGN_LEVELS.find(l => l.id === lastId);
+        if (cLevel) return cLevel;
+      }
+    }
+    return CAMPAIGN_LEVELS[0];
+  }, []);
+
+  const [currentLevel, setCurrentLevel] = useState<LevelConfig>(initialLevel);
+  const [physicsState, setPhysicsState] = useState<PhysicsEngineState>(() => initLevel(initialLevel));
   const [selectedPlanetIds, setSelectedPlanetIds] = useState<string[]>([]);
   const [sendPercentage, setSendPercentage] = useState(1.0);
   const [speedMultiplier, setSpeedMultiplier] = useState(1);
@@ -60,8 +79,20 @@ function App() {
   const [editorMapId, setEditorMapId] = useState<string | null>(null);
   const [editorMapName, setEditorMapName] = useState<string | undefined>(undefined);
 
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showAdminDashboard, setShowAdminDashboard] = useState(false);
+
   useEffect(() => { sound.setVolume(sfxVolume); }, [sfxVolume]);
   useEffect(() => { music.setVolume(musicVolume); }, [musicVolume]);
+  useEffect(() => { setLastPlayedLevel(currentLevel.id); }, [currentLevel.id]);
+
+  useEffect(() => {
+    if (isSupabaseConfigured()) {
+      supabase?.auth.getSession().then(({ data: { session } }) => {
+        if (session) syncProgressFromCloud();
+      });
+    }
+  }, []);
 
   const physicsStateRef = useRef(physicsState);
   physicsStateRef.current = physicsState;
@@ -218,20 +249,33 @@ function App() {
     sound.playSelect();
   };
 
+  const settingsMenuNode = (
+    <SettingsMenu 
+      sfxVolume={sfxVolume}
+      onSetSfxVolume={setSfxVolume}
+      musicVolume={musicVolume}
+      onSetMusicVolume={setMusicVolume}
+      onOpenAuth={() => setShowAuthModal(true)}
+      onOpenAdmin={() => setShowAdminDashboard(true)}
+    />
+  );
+
   return (
     <div className="relative w-full h-full overflow-hidden bg-[#0a0a14]">
       {gameState === 'playing' || gameState === 'paused' || gameState === 'victory' || gameState === 'defeat' ? (
         <>
-          <GameCanvas
-            planets={physicsState.planets}
-            ships={physicsState.ships}
-            sparks={physicsState.sparks}
-            lasers={physicsState.lasers}
-            screenShake={physicsState.screenShake}
-            selectedPlanetIds={selectedPlanetIds}
-            onSelectPlanets={setSelectedPlanetIds}
-            onLaunchFleets={handleLaunchFleets}
-          />
+          <div className="w-full h-full sm:p-0 pt-[70px] pb-[90px]">
+            <GameCanvas
+              planets={physicsState.planets}
+              ships={physicsState.ships}
+              sparks={physicsState.sparks}
+              lasers={physicsState.lasers}
+              screenShake={physicsState.screenShake}
+              selectedPlanetIds={selectedPlanetIds}
+              onSelectPlanets={setSelectedPlanetIds}
+              onLaunchFleets={handleLaunchFleets}
+            />
+          </div>
           <HUD
             levelName={currentLevel.name}
             planets={physicsState.planets}
@@ -250,22 +294,25 @@ function App() {
               setIsPaused(true);
               setShowLevelSelect(true);
             }}
+            settingsMenu={settingsMenuNode}
           />
         </>
       ) : null}
 
       {gameState === 'cinematic' && (
         <>
-          <GameCanvas
-            planets={physicsState.planets}
-            ships={physicsState.ships}
-            sparks={physicsState.sparks}
-            lasers={physicsState.lasers}
-            screenShake={physicsState.screenShake}
-            selectedPlanetIds={[]}
-            onSelectPlanets={() => {}}
-            onLaunchFleets={() => {}}
-          />
+          <div className="w-full h-full sm:p-0 pt-[70px] pb-[90px]">
+            <GameCanvas
+              planets={physicsState.planets}
+              ships={physicsState.ships}
+              sparks={physicsState.sparks}
+              lasers={physicsState.lasers}
+              screenShake={physicsState.screenShake}
+              selectedPlanetIds={[]}
+              onSelectPlanets={() => {}}
+              onLaunchFleets={() => {}}
+            />
+          </div>
           <CinematicOverlay 
             onComplete={() => {
               setVictory(true);
@@ -307,6 +354,7 @@ function App() {
             setGameState('menu');
             setShowLevelSelect(true);
           }}
+          settingsMenu={settingsMenuNode}
         />
       )}
 
@@ -317,6 +365,8 @@ function App() {
           onSelectLevel={handleSelectLevel}
           currentLevelId={currentLevel.id}
           isGameActive={gameState === 'playing'}
+          onOpenAuth={() => setShowAuthModal(true)}
+          onOpenAdmin={() => setShowAdminDashboard(true)}
           onOpenMapEditor={(mapToEdit) => {
             if (mapToEdit) {
               setEditorMapId(mapToEdit.id);
@@ -345,6 +395,7 @@ function App() {
               });
             }
           }}
+          settingsMenu={settingsMenuNode}
         />
       )}
 
@@ -361,12 +412,19 @@ function App() {
       <ReloadPrompt />
       <InstallBanner />
       <NowPlaying />
-      <SettingsMenu 
-        sfxVolume={sfxVolume}
-        onSetSfxVolume={setSfxVolume}
-        musicVolume={musicVolume}
-        onSetMusicVolume={setMusicVolume}
+
+      <AuthModal 
+        isOpen={showAuthModal} 
+        onClose={() => setShowAuthModal(false)} 
+        onSuccess={() => {
+          syncProgressFromCloud();
+          setShowAuthModal(false);
+        }}
       />
+
+      {showAdminDashboard && (
+        <AdminDashboard onClose={() => setShowAdminDashboard(false)} />
+      )}
 
       <div id="portrait-warning" className="fixed inset-0 z-50 bg-black hidden flex-col items-center justify-center p-8 text-center text-white">
         <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mb-6 animate-pulse-slow">

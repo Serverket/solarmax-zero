@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { GameCanvas } from './GameCanvas';
 import type { Planet, PlanetType, FactionId } from '../types/game';
 import { FACTIONS } from '../utils/levels';
-import { Settings, Play, Trash2, Link as LinkIcon, Crosshair, Hexagon, Circle } from 'lucide-react';
+import { Pencil, Play, Trash2, Link as LinkIcon, Crosshair, Hexagon, Circle } from 'lucide-react';
 
 interface MapEditorProps {
   initialPlanets: Planet[];
@@ -10,9 +10,10 @@ interface MapEditorProps {
   initialMapName?: string;
   onStartGame: (planets: Planet[], mapId?: string, mapName?: string) => void;
   onExit: () => void;
+  settingsMenu?: React.ReactNode;
 }
 
-export const MapEditor: React.FC<MapEditorProps> = ({ initialPlanets, initialMapId, initialMapName, onStartGame, onExit }) => {
+export const MapEditor: React.FC<MapEditorProps> = ({ initialPlanets, initialMapId, initialMapName, onStartGame, onExit, settingsMenu }) => {
   const [planets, setPlanets] = useState<Planet[]>(initialPlanets);
   const [mapName, setMapName] = useState(initialMapName || `Custom Map ${new Date().toLocaleTimeString()}`);
   const [selectedPlanetId, setSelectedPlanetId] = useState<string | null>(null);
@@ -125,37 +126,24 @@ export const MapEditor: React.FC<MapEditorProps> = ({ initialPlanets, initialMap
           onEditorPointerUp={handleEditorPointerUp}
         />
         
-        {/* Draw Link Lines for Portals */}
-        <svg className="absolute inset-0 pointer-events-none w-full h-full">
-          {planets.filter(p => p.type === 'portal' && p.portalTargetId).map(p => {
-            const target = planets.find(t => t.id === p.portalTargetId);
-            if (!target) return null;
-            return (
-              <line 
-                key={`${p.id}-${target.id}`} 
-                x1={p.x} y1={p.y} x2={target.x} y2={target.y} 
-                stroke="#64b4ff" strokeWidth="2" strokeDasharray="5,5" opacity="0.5" 
-              />
-            );
-          })}
-        </svg>
+
       </div>
 
       {/* Top Toolbar */}
-      <div className="relative z-10 glass-panel-glow-white bg-black/50 p-2 sm:p-4 pt-[max(env(safe-area-inset-top),0.5rem)] flex flex-nowrap gap-2 sm:gap-4 justify-between items-center border-b border-white/10 shadow-lg overflow-x-auto no-scrollbar">
-        <div className="flex items-center gap-4">
-          <Settings className="w-5 h-5 text-white/50" />
+      <div className="relative z-10 glass-panel-glow-white bg-black/50 p-2 sm:p-4 pt-[max(env(safe-area-inset-top),0.5rem)] flex justify-between items-center border-b border-white/10 shadow-lg">
+        <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+          <Pencil className="w-5 h-5 text-white/50 hidden md:block" />
           <input 
             type="text" 
             value={mapName}
             onChange={(e) => setMapName(e.target.value)}
-            className="text-xl font-orbitron font-bold text-white tracking-widest uppercase bg-transparent border-b border-white/20 focus:border-white outline-none w-48 sm:w-64 glow-white hidden sm:block"
+            className="text-lg sm:text-xl font-orbitron font-bold text-white tracking-widest uppercase bg-transparent border-b border-white/20 focus:border-white outline-none w-32 sm:w-64 glow-white"
             placeholder="MAP NAME"
             maxLength={30}
           />
         </div>
         
-        <div className="flex flex-nowrap justify-center gap-1 sm:gap-2 shrink-0">
+        <div className="flex flex-nowrap justify-start sm:justify-center gap-1 sm:gap-2 overflow-x-auto no-scrollbar mx-2 flex-1">
           <button 
             onClick={() => setTool('select')} 
             className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded text-[10px] sm:text-xs font-bold uppercase tracking-widest transition-all ${tool === 'select' ? 'bg-white text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
@@ -194,10 +182,12 @@ export const MapEditor: React.FC<MapEditorProps> = ({ initialPlanets, initialMap
           </button>
         </div>
 
-        <div className="flex flex-nowrap gap-1 sm:gap-4 shrink-0">
-          <button onClick={onExit} className="px-4 sm:px-6 py-2 rounded bg-white/10 hover:bg-white/20 text-white text-xs font-bold uppercase tracking-widest transition-all">
-            Cancel
-          </button>
+        <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+          {settingsMenu}
+          <div className="flex flex-nowrap gap-1 sm:gap-4">
+            <button onClick={onExit} className="px-2 sm:px-6 py-2 rounded bg-white/10 hover:bg-white/20 text-white text-[10px] sm:text-xs font-bold uppercase tracking-widest transition-all">
+              Cancel
+            </button>
           <button 
             onClick={() => {
               const hasPlayer = planets.some(p => p.owner === 'player');
@@ -214,10 +204,12 @@ export const MapEditor: React.FC<MapEditorProps> = ({ initialPlanets, initialMap
               
               onStartGame(planets, initialMapId, mapName);
             }} 
-            className="px-4 sm:px-6 py-2 rounded bg-white hover:bg-gray-200 text-black text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(255,255,255,0.4)]"
+            className="px-2 sm:px-6 py-2 rounded bg-white hover:bg-gray-200 text-black text-[10px] sm:text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(255,255,255,0.4)]"
           >
-            <Play className="w-4 h-4 fill-current" /> <span className="hidden sm:inline">{initialMapId ? 'Save & Play' : 'Initialize'}</span>
+            <Play className="w-4 h-4 fill-current hidden sm:block" /> <span className="hidden sm:inline">{initialMapId ? 'Save & Play' : 'Initialize'}</span>
+            <Play className="w-3 h-3 fill-current sm:hidden" />
           </button>
+          </div>
         </div>
       </div>
 

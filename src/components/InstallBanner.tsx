@@ -50,9 +50,9 @@ export const InstallBanner: React.FC = () => {
     <div className="fixed bottom-0 left-0 right-0 z-50 p-2 sm:p-4 md:p-6 pb-2 sm:pb-4 md:pb-6 pointer-events-none flex justify-center">
       <div className="glass-panel-glow-white bg-black/60 backdrop-blur-xl rounded-2xl p-2 sm:p-4 md:p-6 w-full max-w-lg pointer-events-auto shadow-[0_0_40px_rgba(255,255,255,0.1)] border border-white/20 flex flex-row items-center gap-2 sm:gap-4 animate-in slide-in-from-bottom-10 fade-in duration-500">
         
-        {/* App Icon Mockup */}
-        <div className="w-10 h-10 sm:w-16 sm:h-16 rounded-xl bg-gradient-to-br from-gray-800 to-black border border-white/30 flex items-center justify-center shrink-0 shadow-[0_0_15px_rgba(255,255,255,0.2)]">
-          <div className="w-5 h-5 sm:w-8 sm:h-8 rotate-45 border-2 sm:border-4 border-white"></div>
+        {/* App Icon */}
+        <div className="w-10 h-10 sm:w-16 sm:h-16 rounded-xl bg-gradient-to-br from-gray-900 to-black border border-white/30 flex items-center justify-center shrink-0 shadow-[0_0_15px_rgba(255,255,255,0.2)] overflow-hidden">
+          <img src="/favicon.svg" alt="Solarmax Logo" className="w-8 h-8 sm:w-12 sm:h-12 drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
         </div>
         
         {/* Text content */}

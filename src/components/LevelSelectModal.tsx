@@ -13,6 +13,7 @@ interface LevelSelectModalProps {
   currentLevelId: string;
   isGameActive?: boolean;
   onOpenMapEditor?: (map?: CustomMap) => void;
+  settingsMenu?: React.ReactNode;
 }
 
 export const LevelSelectModal: React.FC<LevelSelectModalProps> = ({
@@ -22,6 +23,7 @@ export const LevelSelectModal: React.FC<LevelSelectModalProps> = ({
   currentLevelId,
   isGameActive,
   onOpenMapEditor,
+  settingsMenu,
 }) => {
   const [tab, setTab] = useState<'campaign' | 'skirmish' | 'custom'>('campaign');
   const [activeSector, setActiveSector] = useState<'origin' | 'mothership'>('origin');
@@ -70,6 +72,20 @@ export const LevelSelectModal: React.FC<LevelSelectModalProps> = ({
 
   return (
     <div className={`fixed inset-0 z-50 flex flex-col p-2 sm:p-4 bg-black/80 backdrop-blur-md overflow-y-auto no-scrollbar transition-colors duration-1000 ${isDarkSector ? 'bg-[#1a001a]/90' : ''}`}>
+      {/* Top Navigation Row */}
+      <div className="w-full max-w-4xl mx-auto flex justify-end items-center gap-2 sm:gap-4 shrink-0 relative z-50 pt-[max(env(safe-area-inset-top),0.5rem)]">
+        {settingsMenu}
+        {isGameActive && (
+          <button
+            onClick={onClose}
+            className="p-2 sm:p-3 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer border border-white/5 backdrop-blur-md"
+            title="Resume Game"
+          >
+            <X className="w-5 h-5 sm:w-6 sm:h-6" />
+          </button>
+        )}
+      </div>
+
       <div className="flex flex-col items-center justify-center relative mt-4 sm:mt-0 mb-2 sm:mb-8 w-full max-w-4xl mx-auto shrink-0 my-auto sm:my-0 transition-all duration-1000">
         <img src="/favicon.svg" alt="Logo" className={`w-28 h-28 mb-4 transition-all duration-1000 ${isDarkSector ? 'drop-shadow-[0_0_25px_rgba(200,0,255,0.8)] hue-rotate-90' : 'drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]'}`} />
         <h2 className={`text-4xl font-black font-orbitron tracking-[0.2em] uppercase mb-1 transition-colors duration-1000 ${isDarkSector ? 'text-[#ff55ff] drop-shadow-[0_0_15px_rgba(255,0,255,0.6)]' : 'text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]'}`}>
@@ -79,16 +95,6 @@ export const LevelSelectModal: React.FC<LevelSelectModalProps> = ({
       </div>
 
       <div className={`w-full max-w-4xl mx-auto glass-panel rounded-2xl p-2 sm:p-6 flex flex-col shrink-0 mb-4 sm:mb-0 relative transition-all duration-1000 ${isDarkSector ? 'bg-[rgba(20,0,20,0.8)] border-[rgba(200,0,255,0.2)] shadow-[0_0_40px_rgba(150,0,200,0.3)]' : ''}`}>
-        {/* Close button absolutely positioned on the right of the whole modal, on mobile it can go to the top right of the screen or header */}
-        {isGameActive && (
-          <button
-            onClick={onClose}
-            className="fixed sm:absolute top-2 right-2 sm:top-0 sm:right-0 p-2 sm:p-3 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer border border-white/5 z-50 backdrop-blur-md"
-            title="Resume Game"
-          >
-            <X className="w-5 h-5 sm:w-6 sm:h-6" />
-          </button>
-        )}
 
         <div className="flex gap-2 sm:gap-4 mb-2 sm:mb-6 shrink-0">
           <button

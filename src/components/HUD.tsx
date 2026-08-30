@@ -18,6 +18,7 @@ interface HUDProps {
   onSelectAllPlayerPlanets: () => void;
   onRestartLevel: () => void;
   onOpenLevelSelect: () => void;
+  settingsMenu?: React.ReactNode;
 }
 
 export const HUD: React.FC<HUDProps> = ({
@@ -35,6 +36,7 @@ export const HUD: React.FC<HUDProps> = ({
   onSelectAllPlayerPlanets,
   onRestartLevel,
   onOpenLevelSelect,
+  settingsMenu,
 }) => {
   const factionCounts: Record<FactionId, { planets: number; ships: number }> = {
     player: { planets: 0, ships: 0 },
@@ -97,6 +99,7 @@ export const HUD: React.FC<HUDProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
+          {settingsMenu}
           <button
             onClick={onRestartLevel}
             className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white/70 transition-all cursor-pointer"
