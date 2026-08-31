@@ -29,6 +29,11 @@ try {
   execSync(`git commit -m "${commitMsg}"`, { stdio: 'inherit' });
   execSync(`git tag v${version}`, { stdio: 'inherit' });
   
+  // 3. Push to remote repository (Triggers Vercel Deploy)
+  console.log('☁️ Push a GitHub para desplegar en Vercel...');
+  execSync('git push origin HEAD', { stdio: 'inherit' });
+  execSync('git push origin --tags', { stdio: 'inherit' });
+  
   console.log(`🚀 Release v${version} creado con éxito.`);
 } catch (error) {
   console.error('❌ Falló el release:', error);
