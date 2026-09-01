@@ -45,7 +45,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
     const data = encoder.encode(pwd);
     const hashBuffer = await crypto.subtle.digest('SHA-384', data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return btoa(String.fromCharCode.apply(null, hashArray as unknown as number[]));
   };
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -62,13 +62,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
 
       // Quantum-Resistant Layer (Pre-Hash)
       const securedPassword = await hashPassword(password);
+      console.log("[DIAGNOSTIC] Generated Hash for transmission:", securedPassword);
 
       let authError;
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({ email, password: securedPassword });
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password: securedPassword });
+        if (error) console.error("[DIAGNOSTIC] Supabase Error:", error);
         authError = error;
       } else {
-        const { error } = await supabase.auth.signUp({ email, password: securedPassword });
+        const { data, error } = await supabase.auth.signUp({ email, password: securedPassword });
+        if (error) console.error("[DIAGNOSTIC] Supabase Error:", error);
         authError = error;
       }
 
