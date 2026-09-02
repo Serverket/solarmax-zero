@@ -66,11 +66,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
 
       let authError;
       if (isLogin) {
-        const { data, error } = await supabase.auth.signInWithPassword({ email, password: securedPassword });
+        const { error } = await supabase.auth.signInWithPassword({ email, password: securedPassword });
         if (error) console.error("[DIAGNOSTIC] Supabase Error:", error);
         authError = error;
       } else {
-        const { data, error } = await supabase.auth.signUp({ email, password: securedPassword });
+        const { error } = await supabase.auth.signUp({ email, password: securedPassword });
         if (error) console.error("[DIAGNOSTIC] Supabase Error:", error);
         authError = error;
       }

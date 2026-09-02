@@ -92,7 +92,7 @@ export const HUD: React.FC<HUDProps> = ({
   }
   lastDominantRef.current = currentDominant;
 
-  const dominantColor = currentDominant !== 'neutral' ? FACTIONS[currentDominant].color : 'transparent';
+  const dominantColor = currentDominant !== 'neutral' ? FACTIONS[currentDominant as FactionId].color : 'transparent';
   
   const topPanelStyle = {
     borderBottomColor: dominantColor,
