@@ -249,7 +249,7 @@ function App() {
     sound.playSelect();
   };
 
-  const settingsMenuNode = (
+  const hudSettingsMenu = (
     <SettingsMenu 
       sfxVolume={sfxVolume}
       onSetSfxVolume={setSfxVolume}
@@ -260,8 +260,20 @@ function App() {
     />
   );
 
+  const modalSettingsMenu = (
+    <SettingsMenu 
+      sfxVolume={sfxVolume}
+      onSetSfxVolume={setSfxVolume}
+      musicVolume={musicVolume}
+      onSetMusicVolume={setMusicVolume}
+      onOpenAuth={() => setShowAuthModal(true)}
+      onOpenAdmin={() => setShowAdminDashboard(true)}
+      dropdownClassName="fixed inset-0 m-auto h-max [@media(min-width:768px)_and_(min-height:550px)]:absolute [@media(min-width:768px)_and_(min-height:550px)]:inset-auto [@media(min-width:768px)_and_(min-height:550px)]:top-10 [@media(min-width:768px)_and_(min-height:550px)]:origin-top"
+    />
+  );
+
   return (
-    <div className="relative w-full h-full overflow-hidden bg-[#0a0a14]">
+    <div className="fixed inset-0 w-full h-[100dvh] overflow-hidden bg-[#0a0a14] overscroll-none touch-none">
       {gameState === 'playing' || gameState === 'paused' || gameState === 'victory' || gameState === 'defeat' ? (
         <>
           <div className="w-full h-full sm:p-0 pt-[70px] pb-[90px]">
@@ -294,7 +306,7 @@ function App() {
               setIsPaused(true);
               setShowLevelSelect(true);
             }}
-            settingsMenu={settingsMenuNode}
+            settingsMenu={hudSettingsMenu}
           />
         </>
       ) : null}
@@ -354,7 +366,7 @@ function App() {
             setGameState('menu');
             setShowLevelSelect(true);
           }}
-          settingsMenu={settingsMenuNode}
+          settingsMenu={hudSettingsMenu}
         />
       )}
 
@@ -393,7 +405,7 @@ function App() {
               });
             }
           }}
-          settingsMenu={settingsMenuNode}
+          settingsMenu={modalSettingsMenu}
         />
       )}
 
@@ -424,7 +436,7 @@ function App() {
         <AdminDashboard onClose={() => setShowAdminDashboard(false)} />
       )}
 
-      <div id="portrait-warning" className="fixed inset-0 z-50 bg-black hidden flex-col items-center justify-center p-8 text-center text-white">
+      <div id="portrait-warning" className="fixed inset-0 z-[9999] bg-black hidden flex-col items-center justify-center p-8 text-center text-white touch-none">
         <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mb-6 animate-pulse-slow">
           <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
           <path d="M12 18h.01"></path>

@@ -335,16 +335,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         ctx.translate(sx, sy);
       }
 
-      // Background - clean dark space
-      ctx.fillStyle = '#0a0a14';
-      ctx.fillRect(-20, -20, width + 40, height + 40);
-
-      // Subtle radial gradient
-      const bgGrad = ctx.createRadialGradient(width / 2, height / 2, 100, width / 2, height / 2, width * 0.7);
-      bgGrad.addColorStop(0, 'rgba(15, 18, 35, 0.6)');
-      bgGrad.addColorStop(1, 'rgba(5, 5, 12, 0)');
-      ctx.fillStyle = bgGrad;
-      ctx.fillRect(-20, -20, width + 40, height + 40);
+      // Background - clean transparent space to fix browser canvas color profile washout
+      ctx.clearRect(-20, -20, width + 40, height + 40);
 
       // Stars
       ctx.fillStyle = '#ffffff';
@@ -915,6 +907,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           });
         }
       }
+
+      // Removed elliptical edge vignette as requested by user to eliminate framed effect
 
       ctx.restore(); // restore from screen shake
       animId = requestAnimationFrame(render);

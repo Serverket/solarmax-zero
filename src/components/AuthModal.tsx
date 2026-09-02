@@ -109,8 +109,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-      <div className="glass-panel p-8 rounded-2xl max-w-sm w-full relative border-cyan-500/20 shadow-[0_0_50px_rgba(0,240,255,0.15)] animate-fade-in">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 overflow-y-auto overflow-x-hidden">
+      <div className="glass-panel p-6 sm:p-8 rounded-2xl max-w-sm w-full relative border-cyan-500/20 shadow-[0_0_50px_rgba(0,240,255,0.15)] animate-fade-in my-auto [@media(max-height:550px)]:p-4">
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-white/40 hover:text-white transition-colors"
@@ -118,11 +118,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
           <X className="w-5 h-5" />
         </button>
 
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-br from-cyan-500/20 to-blue-600/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-cyan-500/40 shadow-[0_0_20px_rgba(0,240,255,0.3)]">
-            {isLogin ? <LogIn className="w-8 h-8 text-cyan-400" /> : <UserPlus className="w-8 h-8 text-cyan-400" />}
+        <div className="text-center mb-6 sm:mb-8 [@media(max-height:550px)]:mb-2">
+          <div className="w-12 h-12 sm:w-16 sm:h-16 [@media(max-height:550px)]:w-8 [@media(max-height:550px)]:h-8 bg-gradient-to-br from-cyan-500/20 to-blue-600/20 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4 [@media(max-height:550px)]:mb-1 border border-cyan-500/40 shadow-[0_0_20px_rgba(0,240,255,0.3)]">
+            {isLogin ? <LogIn className="w-6 h-6 sm:w-8 sm:h-8 [@media(max-height:550px)]:w-4 [@media(max-height:550px)]:h-4 text-cyan-400" /> : <UserPlus className="w-6 h-6 sm:w-8 sm:h-8 [@media(max-height:550px)]:w-4 [@media(max-height:550px)]:h-4 text-cyan-400" />}
           </div>
-          <h2 className="font-orbitron text-2xl font-black text-white tracking-[0.2em] uppercase glow-white">
+          <h2 className="font-orbitron text-xl sm:text-2xl [@media(max-height:550px)]:text-lg font-black text-white tracking-[0.2em] uppercase glow-white">
             {isLogin ? 'Initialize' : 'Enlist'}
           </h2>
           <p className="text-[10px] text-cyan-200/50 tracking-[0.3em] uppercase mt-2">
@@ -137,7 +137,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
           </div>
         )}
 
-        <form onSubmit={handleAuth} className="space-y-4">
+        <form onSubmit={handleAuth} className="space-y-3 sm:space-y-4 [@media(max-height:550px)]:space-y-2">
           <input 
             type="text" 
             name="pilot_classification" 
@@ -155,7 +155,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="PILOT EMAIL"
-              className="w-full bg-black/50 border border-white/10 rounded-lg py-3 pl-10 pr-4 text-white text-sm focus:outline-none focus:border-cyan-400 focus:bg-cyan-900/10 focus:shadow-[0_0_15px_rgba(0,240,255,0.2)] transition-all font-mono"
+              className="w-full bg-black/50 border border-white/10 rounded-lg py-3 [@media(max-height:550px)]:py-2 pl-10 pr-4 text-white text-sm focus:outline-none focus:border-cyan-400 focus:bg-cyan-900/10 focus:shadow-[0_0_15px_rgba(0,240,255,0.2)] transition-all font-mono"
             />
           </div>
           
@@ -167,14 +167,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="ACCESS CODE"
-              className="w-full bg-black/50 border border-white/10 rounded-lg py-3 pl-10 pr-4 text-white text-sm focus:outline-none focus:border-cyan-400 focus:bg-cyan-900/10 focus:shadow-[0_0_15px_rgba(0,240,255,0.2)] transition-all font-mono"
+              className="w-full bg-black/50 border border-white/10 rounded-lg py-3 [@media(max-height:550px)]:py-2 pl-10 pr-4 text-white text-sm focus:outline-none focus:border-cyan-400 focus:bg-cyan-900/10 focus:shadow-[0_0_15px_rgba(0,240,255,0.2)] transition-all font-mono"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3.5 rounded-lg font-orbitron font-bold uppercase tracking-widest text-xs transition-all flex items-center justify-center gap-2 bg-white text-black hover:bg-cyan-100 hover:shadow-[0_0_30px_rgba(255,255,255,0.6)] disabled:opacity-50 disabled:cursor-not-allowed mt-8 relative overflow-hidden group"
+            className="w-full py-3 sm:py-3.5 [@media(max-height:550px)]:py-2 rounded-lg font-orbitron font-bold uppercase tracking-widest text-xs transition-all flex items-center justify-center gap-2 bg-white text-black hover:bg-cyan-100 hover:shadow-[0_0_30px_rgba(255,255,255,0.6)] disabled:opacity-50 disabled:cursor-not-allowed mt-4 sm:mt-8 [@media(max-height:550px)]:mt-2 relative overflow-hidden group"
           >
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent -translate-x-full group-hover:animate-shimmer" />
             {loading ? (
@@ -185,7 +185,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
           </button>
         </form>
 
-        <div className="mt-6 text-center">
+        <div className="mt-6 [@media(max-height:550px)]:mt-3 text-center">
           <button
             type="button"
             onClick={() => { setIsLogin(!isLogin); setError(null); }}

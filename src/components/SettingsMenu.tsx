@@ -8,6 +8,7 @@ interface SettingsMenuProps {
   onSetMusicVolume: (vol: number) => void;
   onOpenAuth: () => void;
   onOpenAdmin: () => void;
+  dropdownClassName?: string;
 }
 
 export const SettingsMenu: React.FC<SettingsMenuProps> = ({
@@ -17,6 +18,7 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({
   onSetMusicVolume,
   onOpenAuth,
   onOpenAdmin,
+  dropdownClassName,
 }) => {
   const [showSettings, setShowSettings] = useState(false);
 
@@ -53,7 +55,12 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({
       </div>
       
       {showSettings && (
-        <div className="absolute top-10 sm:top-12 right-0 bg-black/80 backdrop-blur-md border border-white/10 shadow-2xl rounded-lg p-3 sm:p-4 flex flex-col gap-3 sm:gap-4 w-48 sm:w-56 z-50 pointer-events-auto origin-top-right">
+        <>
+          <div 
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40 cursor-default" 
+            onClick={() => setShowSettings(false)} 
+          />
+          <div className={`absolute bg-black/80 backdrop-blur-md border border-white/10 shadow-2xl rounded-lg p-3 sm:p-4 flex flex-col gap-3 sm:gap-4 w-48 sm:w-56 z-50 pointer-events-auto ${dropdownClassName || 'top-10 sm:top-12 right-0 origin-top-right'}`}>
           <div className="flex justify-between items-center border-b border-white/10 pb-2 mb-1 text-white/90 font-orbitron text-sm tracking-wider">
             AUDIO CONFIG
           </div>
@@ -87,7 +94,8 @@ export const SettingsMenu: React.FC<SettingsMenuProps> = ({
               className="w-full accent-cyan-400 cursor-pointer"
             />
           </div>
-        </div>
+          </div>
+        </>
       )}
     </div>
   );

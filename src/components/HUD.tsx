@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Play, Pause, Volume2, VolumeX, Grid, RotateCcw } from 'lucide-react';
 import type { Planet, Ship, FactionId } from '../types/game';
 import { FACTIONS } from '../utils/levels';
@@ -59,10 +59,62 @@ export const HUD: React.FC<HUDProps> = ({
   const totalShips = Object.values(factionCounts).reduce((acc, v) => acc + v.ships, 0) || 1;
   const activeFactions = (Object.keys(factionCounts) as FactionId[]).filter(f => f !== 'neutral' && (factionCounts[f].planets > 0 || factionCounts[f].ships > 0));
 
+  // Compute dominating faction with Hysteresis
+  const lastDominantRef = useRef<string>('neutral');
+  let currentDominant = 'neutral';
+  
+  if (planets.length > 0) {
+    let first = 0;
+    let second = 0;
+    let firstFaction = 'neutral';
+    
+    for (const [fac, data] of Object.entries(factionCounts)) {
+      if (fac === 'neutral') continue;
+      const count = data.planets;
+      if (count > first) {
+        second = first;
+        first = count;
+        firstFaction = fac;
+      } else if (count > second) {
+        second = count;
+      }
+    }
+    
+    if (first > second) {
+      currentDominant = firstFaction;
+    } else if (first === second && first > 0) {
+       if (factionCounts[lastDominantRef.current as FactionId]?.planets === first) {
+         currentDominant = lastDominantRef.current;
+       } else {
+         currentDominant = 'neutral';
+       }
+    }
+  }
+  lastDominantRef.current = currentDominant;
+
+  const dominantColor = currentDominant !== 'neutral' ? FACTIONS[currentDominant].color : 'transparent';
+  
+  const topPanelStyle = {
+    borderBottomColor: dominantColor,
+    borderBottomWidth: currentDominant !== 'neutral' ? '2px' : '1px',
+    boxShadow: currentDominant !== 'neutral' ? `0 15px 25px -15px ${dominantColor}60` : undefined,
+    transition: 'border-bottom-color 1.5s ease, box-shadow 1.5s ease, border-width 0.3s ease'
+  };
+
+  const bottomPanelStyle = {
+    borderTopColor: dominantColor,
+    borderTopWidth: currentDominant !== 'neutral' ? '2px' : '1px',
+    boxShadow: currentDominant !== 'neutral' ? `0 -15px 25px -15px ${dominantColor}60` : undefined,
+    transition: 'border-top-color 1.5s ease, box-shadow 1.5s ease, border-width 0.3s ease'
+  };
+
   return (
     <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-1 sm:p-3 pt-[max(env(safe-area-inset-top),0.25rem)] pb-[max(env(safe-area-inset-bottom),0.25rem)] px-[max(env(safe-area-inset-left),0.25rem)] z-10 select-none">
       {/* Top bar */}
-      <div className="flex justify-between items-center glass-panel rounded-lg px-2 sm:px-4 py-1 sm:py-2 pointer-events-auto max-w-5xl mx-auto w-full flex-nowrap gap-1 sm:gap-2">
+      <div 
+        className="flex justify-between items-center glass-panel rounded-lg px-2 sm:px-4 py-1 sm:py-2 pointer-events-auto max-w-5xl mx-auto w-full flex-nowrap gap-1 sm:gap-2"
+        style={topPanelStyle}
+      >
         <div className="flex items-center gap-3">
           <button
             onClick={onOpenLevelSelect}
@@ -118,7 +170,10 @@ export const HUD: React.FC<HUDProps> = ({
       </div>
 
       {/* Bottom bar - percentage slider + speed controls */}
-      <div className="flex flex-nowrap justify-between items-center glass-panel rounded-lg px-2 sm:px-4 py-1.5 sm:py-2.5 pointer-events-auto max-w-3xl mx-auto w-full gap-2 sm:gap-4 overflow-x-auto no-scrollbar">
+      <div 
+        className="flex flex-nowrap justify-between items-center glass-panel rounded-lg px-2 sm:px-4 py-1.5 sm:py-2.5 pointer-events-auto max-w-3xl mx-auto w-full gap-2 sm:gap-4 overflow-x-auto no-scrollbar"
+        style={bottomPanelStyle}
+      >
         {/* Send percentage slider */}
         <div className="flex items-center gap-2 flex-1 min-w-[150px] max-w-xs">
           <span className="text-[10px] text-white/50 whitespace-nowrap hidden sm:inline">Send</span>
