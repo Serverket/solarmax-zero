@@ -804,7 +804,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       
       // Lasers
       lasers.forEach(l => {
-         const alpha = l.life / l.maxLife;
+         const alpha = Math.max(0, Math.min(1, l.life / l.maxLife));
          ctx.save();
          ctx.strokeStyle = l.color;
          ctx.lineWidth = 2;
@@ -829,7 +829,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
       // Sparks
       sparks.forEach(sp => {
-        const alpha = sp.life / sp.maxLife;
+        const alpha = Math.max(0, Math.min(1, sp.life / sp.maxLife));
         ctx.globalAlpha = alpha;
         
         if (sp.type === 'shockwave') {
@@ -840,7 +840,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
            ctx.beginPath();
            const size = sp.size || 40;
            // expands outward as it ages (alpha goes 1 -> 0, so 1 - alpha goes 0 -> 1)
-           ctx.arc(sp.x, sp.y, size * (1 - alpha), 0, Math.PI * 2);
+           ctx.arc(sp.x, sp.y, Math.max(0.1, size * (1 - alpha)), 0, Math.PI * 2);
            ctx.stroke();
         } else {
            ctx.fillStyle = sp.color;
@@ -848,7 +848,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
            ctx.shadowBlur = 5;
            ctx.beginPath();
            const size = sp.size || 1.5;
-           ctx.arc(sp.x, sp.y, size * alpha + 0.5, 0, Math.PI * 2);
+           ctx.arc(sp.x, sp.y, Math.max(0.1, size * alpha + 0.5), 0, Math.PI * 2);
            ctx.fill();
         }
         ctx.shadowBlur = 0;
