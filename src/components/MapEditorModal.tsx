@@ -68,8 +68,8 @@ export const MapEditorModal: React.FC<MapEditorModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-fade-in">
-      <div className="w-full max-w-4xl glass-panel border border-amber-500/30 rounded-3xl p-6 sm:p-8 flex flex-col max-h-[90vh] shadow-[0_0_50px_rgba(245,158,11,0.25)]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 pb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)] bg-slate-950/85 backdrop-blur-md overflow-hidden touch-none">
+      <div className="w-full max-w-4xl glass-panel border border-amber-500/30 rounded-3xl p-4 sm:p-8 flex flex-col max-h-full min-h-0 shadow-[0_0_50px_rgba(245,158,11,0.25)]">
         <div className="flex justify-between items-center pb-4 border-b border-slate-800">
           <div className="flex items-center gap-2">
             <Zap className="w-6 h-6 text-amber-400" />
@@ -80,7 +80,7 @@ export const MapEditorModal: React.FC<MapEditorModalProps> = ({
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto my-4 pr-2 space-y-3">
+        <div className="flex-1 overflow-hidden touch-none my-2 sm:my-4 pr-1 sm:pr-2 space-y-2 sm:space-y-3 min-h-0">
           {planets.map((planet, idx) => (
             <div key={planet.id} className="glass-panel p-3 rounded-xl border border-slate-800 flex flex-wrap sm:flex-nowrap items-center gap-3">
               <span className="font-orbitron font-bold text-xs text-amber-400 w-6">#{idx + 1}</span>

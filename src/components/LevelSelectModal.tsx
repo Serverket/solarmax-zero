@@ -72,7 +72,7 @@ export const LevelSelectModal: React.FC<LevelSelectModalProps> = ({
   const themeGlow = isDarkSector ? 'shadow-[0_0_20px_rgba(200,0,255,0.2)] border-[rgba(200,0,255,0.4)] text-[rgba(255,100,255,1)]' : 'shadow-[0_0_20px_rgba(255,255,255,0.2)] glass-panel-glow-white text-white border-white/50';
 
   return (
-    <div className={`fixed inset-0 z-50 flex p-2 sm:p-4 overflow-hidden touch-none transition-colors duration-1000 ${isDarkSector ? 'bg-[#1a001a]/40' : 'bg-black/20'}`}>
+    <div className={`fixed inset-0 z-50 flex p-2 sm:p-4 pb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)] overflow-hidden touch-none transition-colors duration-1000 ${isDarkSector ? 'bg-[#1a001a]/40' : 'bg-black/20'}`}>
       <BlackholeBackground />
       
       {/* Settings are now embedded in the tabs row to prevent overlap */}
@@ -362,7 +362,7 @@ export const LevelSelectModal: React.FC<LevelSelectModalProps> = ({
             )}
 
             {tab === 'custom' && (
-              <div className="flex flex-col gap-2 w-full h-full overflow-y-auto no-scrollbar touch-pan-y p-1">
+              <div className="flex flex-col gap-1 sm:gap-2 w-full h-full overflow-hidden touch-none p-1 min-h-0">
                  {customMaps.length === 0 ? (
                     <div className="flex flex-col items-center justify-center text-white/40 h-full gap-3 sm:gap-4 p-4">
                       <Map className="w-10 h-10 sm:w-16 sm:h-16 opacity-30" />
@@ -377,7 +377,7 @@ export const LevelSelectModal: React.FC<LevelSelectModalProps> = ({
                  ) : (
                    <div className="flex flex-col h-full w-full">
                      {/* Cards Grid */}
-                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 overflow-y-auto no-scrollbar pb-4 px-1 sm:px-2">
+                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4 overflow-hidden touch-none pb-4 px-1 sm:px-2 min-h-0">
                         {customMaps.map(m => (
                           <div key={m.id} className="p-4 sm:p-5 rounded-xl bg-black/40 border border-white/10 flex flex-col gap-3 sm:gap-4 hover:bg-white/5 transition-colors">
                             <div className="flex justify-between items-center border-b border-white/10 pb-2">

@@ -138,7 +138,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
   }
 
   return (
-    <div className="fixed inset-0 z-[200] flex flex-col sm:flex-row bg-[#05070e] overflow-hidden">
+    <div className="fixed inset-0 z-[200] flex flex-col sm:flex-row bg-[#05070e] overflow-hidden pb-[env(safe-area-inset-bottom,0px)] touch-none">
       {/* Sidebar */}
       <div className="w-full sm:w-64 border-b sm:border-b-0 sm:border-r border-white/5 bg-black/50 p-4 sm:p-6 flex flex-col gap-6 shrink-0">
         <div className="flex items-center gap-3 text-cyan-400">
@@ -149,7 +149,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
           </div>
         </div>
         
-        <div className="flex sm:flex-col gap-2 flex-1 overflow-x-auto sm:overflow-visible no-scrollbar">
+        <div className="flex sm:flex-col gap-2 flex-1 overflow-hidden no-scrollbar shrink-0">
           <button 
             onClick={() => setActiveTab('pilots')}
             className={`flex items-center gap-3 p-3 rounded-lg text-xs font-bold uppercase tracking-widest whitespace-nowrap transition-all ${
@@ -212,9 +212,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 sm:p-8 z-10">
+        <div className="flex-1 overflow-hidden touch-none p-2 sm:p-8 z-10 flex flex-col min-h-0">
           {activeTab === 'pilots' && (
-            <div className="glass-panel rounded-xl overflow-hidden border-white/10 shadow-2xl flex flex-col">
+            <div className="glass-panel rounded-xl overflow-hidden border-white/10 shadow-2xl flex flex-col flex-1 min-h-0">
               {/* Mobile Search */}
               <div className="p-4 border-b border-white/5 md:hidden">
                  <div className="relative">
@@ -228,8 +228,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onClose }) => {
                   />
                 </div>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse min-w-[700px]">
+              <div className="overflow-hidden touch-none flex-1 min-h-0">
+                <table className="w-full text-left border-collapse table-fixed">
                   <thead>
                     <tr className="bg-white/5 border-b border-white/10 text-[10px] text-white/50 uppercase tracking-widest font-mono">
                       <th className="p-4 font-normal">Pilot ID / Name</th>
