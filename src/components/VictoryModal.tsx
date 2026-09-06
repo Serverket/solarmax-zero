@@ -9,6 +9,7 @@ interface VictoryModalProps {
   onNextLevel: () => void;
   onRestart: () => void;
   onLevelSelect: () => void;
+  isMultiplayer?: boolean;
 }
 
 export const VictoryModal: React.FC<VictoryModalProps> = ({
@@ -17,6 +18,7 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
   onNextLevel,
   onRestart,
   onLevelSelect,
+  isMultiplayer,
 }) => {
   useEffect(() => {
     if (isVictory) {
@@ -44,7 +46,9 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
           {isVictory ? 'VICTORY' : 'DEFEAT'}
         </h2>
         <p className="text-[10px] sm:text-sm [@media(max-height:500px)]:text-[9px] text-white/50 mb-2 sm:mb-8 [@media(max-height:500px)]:mb-1.5 font-medium shrink-0 min-h-0 truncate">
-          {isVictory ? 'All enemy planets have been assimilated.' : 'Your fleet has been eradicated.'}
+          {isMultiplayer 
+            ? (isVictory ? 'You established supremacy over the sector.' : 'All your planetary fleets were annihilated.')
+            : (isVictory ? 'All enemy planets have been assimilated.' : 'Your fleet has been eradicated.')}
         </p>
 
         <div className="w-full flex flex-row sm:grid sm:grid-cols-2 [@media(max-height:500px)]:flex [@media(max-height:500px)]:flex-row gap-1 sm:gap-3 [@media(max-height:500px)]:gap-1 mb-2 sm:mb-8 [@media(max-height:500px)]:mb-2 text-xs font-orbitron flex-1 min-h-0 overflow-hidden">
@@ -67,34 +71,46 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
         </div>
 
         <div className="w-full flex flex-row sm:flex-col [@media(max-height:500px)]:flex-row gap-1 sm:gap-3 [@media(max-height:500px)]:gap-1 text-[10px] sm:text-sm [@media(max-height:500px)]:text-[9px] font-bold uppercase tracking-widest shrink-0 min-h-0">
-          {isVictory && (
+          {isMultiplayer ? (
             <button
-              onClick={onNextLevel}
-              className="flex-1 py-2 sm:py-4 [@media(max-height:500px)]:py-1.5 rounded-lg bg-white hover:bg-gray-200 text-black transition-all flex items-center justify-center gap-1 sm:gap-2 cursor-pointer shadow-[0_0_20px_rgba(255,255,255,0.4)]"
+              onClick={onLevelSelect}
+              className="w-full py-2.5 sm:py-4 [@media(max-height:500px)]:py-2 rounded-lg bg-[#00f0ff] hover:bg-white text-black font-orbitron font-bold tracking-widest transition-all flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_20px_rgba(0,240,255,0.4)]"
             >
-              <span className="hidden sm:inline [@media(max-height:500px)]:hidden">PROCEED</span>
-              <span className="sm:hidden [@media(max-height:500px)]:inline">PROCEED</span>
-              <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 [@media(max-height:500px)]:hidden" />
+              <Grid className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span>EXIT TO COMMAND CENTER</span>
             </button>
+          ) : (
+            <>
+              {isVictory && (
+                <button
+                  onClick={onNextLevel}
+                  className="flex-1 py-2 sm:py-4 [@media(max-height:500px)]:py-1.5 rounded-lg bg-white hover:bg-gray-200 text-black transition-all flex items-center justify-center gap-1 sm:gap-2 cursor-pointer shadow-[0_0_20px_rgba(255,255,255,0.4)]"
+                >
+                  <span className="hidden sm:inline [@media(max-height:500px)]:hidden">PROCEED</span>
+                  <span className="sm:hidden [@media(max-height:500px)]:inline">PROCEED</span>
+                  <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 [@media(max-height:500px)]:hidden" />
+                </button>
+              )}
+
+              <button
+                onClick={onRestart}
+                className={`${isVictory ? 'flex-1 sm:w-full [@media(max-height:500px)]:w-auto' : 'w-full'} py-2 sm:py-3.5 [@media(max-height:500px)]:py-1.5 rounded-lg glass-panel hover:bg-white/10 text-white/80 transition-all flex items-center justify-center gap-1 sm:gap-2 cursor-pointer`}
+              >
+                <RotateCcw className="w-3.5 h-3.5 sm:w-4 sm:h-4 [@media(max-height:500px)]:w-3 [@media(max-height:500px)]:h-3" />
+                <span className="hidden sm:inline [@media(max-height:500px)]:hidden">REINITIALIZE</span>
+                <span className="sm:hidden [@media(max-height:500px)]:inline">RESTART</span>
+              </button>
+
+              <button
+                onClick={onLevelSelect}
+                className={`${isVictory ? 'flex-1 sm:w-full [@media(max-height:500px)]:w-auto' : 'w-full'} py-2 sm:py-3.5 [@media(max-height:500px)]:py-1.5 rounded-lg bg-transparent border border-white/10 hover:bg-white/5 text-white/50 hover:text-white transition-all flex items-center justify-center gap-1 sm:gap-2 cursor-pointer`}
+              >
+                <Grid className="w-3.5 h-3.5 sm:w-4 sm:h-4 [@media(max-height:500px)]:w-3 [@media(max-height:500px)]:h-3" />
+                <span className="hidden sm:inline [@media(max-height:500px)]:hidden">COMMAND CENTER</span>
+                <span className="sm:hidden [@media(max-height:500px)]:inline">MENU</span>
+              </button>
+            </>
           )}
-
-          <button
-            onClick={onRestart}
-            className={`${isVictory ? 'flex-1 sm:w-full [@media(max-height:500px)]:w-auto' : 'w-full'} py-2 sm:py-3.5 [@media(max-height:500px)]:py-1.5 rounded-lg glass-panel hover:bg-white/10 text-white/80 transition-all flex items-center justify-center gap-1 sm:gap-2 cursor-pointer`}
-          >
-            <RotateCcw className="w-3.5 h-3.5 sm:w-4 sm:h-4 [@media(max-height:500px)]:w-3 [@media(max-height:500px)]:h-3" />
-            <span className="hidden sm:inline [@media(max-height:500px)]:hidden">REINITIALIZE</span>
-            <span className="sm:hidden [@media(max-height:500px)]:inline">RESTART</span>
-          </button>
-
-          <button
-            onClick={onLevelSelect}
-            className={`${isVictory ? 'flex-1 sm:w-full [@media(max-height:500px)]:w-auto' : 'w-full'} py-2 sm:py-3.5 [@media(max-height:500px)]:py-1.5 rounded-lg bg-transparent border border-white/10 hover:bg-white/5 text-white/50 hover:text-white transition-all flex items-center justify-center gap-1 sm:gap-2 cursor-pointer`}
-          >
-            <Grid className="w-3.5 h-3.5 sm:w-4 sm:h-4 [@media(max-height:500px)]:w-3 [@media(max-height:500px)]:h-3" />
-            <span className="hidden sm:inline [@media(max-height:500px)]:hidden">COMMAND CENTER</span>
-            <span className="sm:hidden [@media(max-height:500px)]:inline">MENU</span>
-          </button>
         </div>
       </div>
     </div>

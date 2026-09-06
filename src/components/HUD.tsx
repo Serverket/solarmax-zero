@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { Play, Pause, Volume2, VolumeX, Grid, RotateCcw } from 'lucide-react';
+import { Play, Pause, Volume2, VolumeX, Grid, RotateCcw, LogOut } from 'lucide-react';
 import type { Planet, Ship, FactionId } from '../types/game';
 import { FACTIONS } from '../utils/levels';
 
@@ -19,6 +19,9 @@ interface HUDProps {
   onRestartLevel: () => void;
   onOpenLevelSelect: () => void;
   settingsMenu?: React.ReactNode;
+  isMultiplayer?: boolean;
+  playerFaction?: FactionId;
+  onLeaveMultiplayer?: () => void;
 }
 
 export const HUD: React.FC<HUDProps> = ({
@@ -37,6 +40,9 @@ export const HUD: React.FC<HUDProps> = ({
   onRestartLevel,
   onOpenLevelSelect,
   settingsMenu,
+  isMultiplayer,
+  playerFaction,
+  onLeaveMultiplayer,
 }) => {
   const factionCounts: Record<FactionId, { planets: number; ships: number }> = {
     player: { planets: 0, ships: 0 },
@@ -109,21 +115,50 @@ export const HUD: React.FC<HUDProps> = ({
   };
 
   return (
-    <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-1 sm:p-3 pt-[max(env(safe-area-inset-top),0.25rem)] pb-[max(env(safe-area-inset-bottom),0.25rem)] px-[max(env(safe-area-inset-left),0.25rem)] z-10 select-none">
+    <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-1.5 [@media(min-width:768px)_and_(min-height:550px)]:p-3 pt-[max(env(safe-area-inset-top),0.25rem)] pb-[max(env(safe-area-inset-bottom),0.25rem)] px-[max(env(safe-area-inset-left),0.25rem)] z-10 select-none">
       {/* Top bar */}
       <div 
-        className="flex justify-between items-center glass-panel rounded-lg px-2 sm:px-4 py-1 sm:py-2 pointer-events-auto max-w-5xl mx-auto w-full flex-nowrap gap-1 sm:gap-2"
+        className="flex justify-between items-center glass-panel rounded-lg px-2 sm:px-4 py-1 [@media(min-width:768px)_and_(min-height:550px)]:py-2 pointer-events-auto max-w-5xl mx-auto w-full flex-nowrap gap-1 sm:gap-2"
         style={topPanelStyle}
       >
-        <div className="flex items-center gap-3">
-          <button
-            onClick={onOpenLevelSelect}
-            className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-medium transition-all cursor-pointer flex items-center gap-1.5"
-          >
-            <Grid className="w-3.5 h-3.5 glow-cyan" />
-            <span className="font-orbitron tracking-wider hidden sm:inline">Levels</span>
-          </button>
-          <div className="text-xs sm:text-sm font-bold text-white font-orbitron tracking-widest glow-cyan truncate max-w-[100px] sm:max-w-none">{levelName}</div>
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          {isMultiplayer ? (
+            <button
+              onClick={onLeaveMultiplayer}
+              className="px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/25 border border-red-500/30 text-red-400 text-xs font-medium transition-all cursor-pointer flex items-center gap-1.5 shrink-0"
+              title="Surrender / Leave Match"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="font-orbitron tracking-wider text-[10px] sm:text-xs">SURRENDER</span>
+            </button>
+          ) : (
+            <button
+              onClick={onOpenLevelSelect}
+              className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-medium transition-all cursor-pointer flex items-center gap-1.5 shrink-0"
+            >
+              <Grid className="w-3.5 h-3.5 glow-cyan" />
+              <span className="font-orbitron tracking-wider hidden sm:inline">Levels</span>
+            </button>
+          )}
+
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="text-xs sm:text-sm font-bold text-white font-orbitron tracking-widest glow-cyan truncate max-w-[110px] sm:max-w-none">
+              {levelName}
+            </div>
+            {isMultiplayer && playerFaction && (
+              <div 
+                className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-orbitron font-bold border shrink-0"
+                style={{ 
+                  borderColor: `${FACTIONS[playerFaction].color}80`, 
+                  color: FACTIONS[playerFaction].color, 
+                  backgroundColor: `${FACTIONS[playerFaction].color}20` 
+                }}
+              >
+                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: FACTIONS[playerFaction].color }} />
+                <span>YOU: {FACTIONS[playerFaction].name.toUpperCase()}</span>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Faction strength bar */}
@@ -150,15 +185,17 @@ export const HUD: React.FC<HUDProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           {settingsMenu}
-          <button
-            onClick={onRestartLevel}
-            className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white/70 transition-all cursor-pointer"
-            title="Restart"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-          </button>
+          {!isMultiplayer && (
+            <button
+              onClick={onRestartLevel}
+              className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white/70 transition-all cursor-pointer"
+              title="Restart"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+            </button>
+          )}
           <button
             onClick={onToggleMute}
             className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white/70 transition-all cursor-pointer"
@@ -171,11 +208,11 @@ export const HUD: React.FC<HUDProps> = ({
 
       {/* Bottom bar - percentage slider + speed controls */}
       <div 
-        className="flex flex-nowrap justify-between items-center glass-panel rounded-lg px-2 sm:px-4 py-1.5 sm:py-2.5 pointer-events-auto max-w-3xl mx-auto w-full gap-2 sm:gap-4 overflow-x-auto no-scrollbar"
+        className="flex flex-nowrap justify-between items-center glass-panel rounded-lg px-2 sm:px-4 py-1 [@media(min-width:768px)_and_(min-height:550px)]:py-2 pointer-events-auto max-w-3xl mx-auto w-full gap-2 sm:gap-4 overflow-x-auto no-scrollbar"
         style={bottomPanelStyle}
       >
         {/* Send percentage slider */}
-        <div className="flex items-center gap-2 flex-1 min-w-[150px] max-w-xs">
+        <div className="flex items-center gap-2 flex-1 min-w-[140px] max-w-xs">
           <span className="text-[10px] text-white/50 whitespace-nowrap hidden sm:inline">Send</span>
           <input
             type="range"
@@ -192,39 +229,46 @@ export const HUD: React.FC<HUDProps> = ({
         {/* Select all */}
         <button
           onClick={onSelectAllPlayerPlanets}
-          className="px-3 py-1 rounded-md bg-white/10 hover:bg-white/20 text-white/80 text-xs font-medium transition-all cursor-pointer whitespace-nowrap"
+          className="px-2.5 sm:px-3 py-1 rounded-md bg-white/10 hover:bg-white/20 text-white/80 text-xs font-medium transition-all cursor-pointer whitespace-nowrap"
         >
           All
         </button>
 
-        {/* Speed controls */}
-        <div className="flex items-center gap-0.5 sm:gap-1 bg-white/5 p-1 rounded-lg justify-center flex-nowrap shrink-0">
-          <button
-            onClick={onTogglePause}
-            className={`p-1.5 rounded-md transition-all cursor-pointer ${
-              isPaused ? 'bg-amber-500 text-black' : 'text-white/60 hover:text-white'
-            }`}
-            title="Pause"
-          >
-            {isPaused ? <Play className="w-3.5 h-3.5" /> : <Pause className="w-3.5 h-3.5" />}
-          </button>
-          {[0.2, 0.5, 1, 2].map(spd => (
+        {/* Speed controls / Multiplayer status */}
+        {isMultiplayer ? (
+          <div className="flex items-center gap-1.5 bg-[#00f0ff]/10 border border-[#00f0ff]/30 px-2 sm:px-3 py-1 rounded-lg shrink-0">
+            <span className="w-2 h-2 rounded-full bg-[#00f0ff] animate-pulse" />
+            <span className="font-orbitron text-[#00f0ff] text-[10px] sm:text-xs tracking-widest font-bold">LIVE P2P</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-0.5 sm:gap-1 bg-white/5 p-1 rounded-lg justify-center flex-nowrap shrink-0">
             <button
-              key={spd}
-              onClick={() => {
-                if (isPaused) onTogglePause();
-                onSetSpeedMultiplier(spd);
-              }}
-              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all cursor-pointer ${
-                !isPaused && speedMultiplier === spd
-                  ? 'bg-blue-500 text-white'
-                  : 'text-white/50 hover:text-white'
+              onClick={onTogglePause}
+              className={`p-1.5 rounded-md transition-all cursor-pointer ${
+                isPaused ? 'bg-amber-500 text-black' : 'text-white/60 hover:text-white'
               }`}
+              title="Pause"
             >
-              {spd}x
+              {isPaused ? <Play className="w-3.5 h-3.5" /> : <Pause className="w-3.5 h-3.5" />}
             </button>
-          ))}
-        </div>
+            {[0.2, 0.5, 1, 2].map(spd => (
+              <button
+                key={spd}
+                onClick={() => {
+                  if (isPaused) onTogglePause();
+                  onSetSpeedMultiplier(spd);
+                }}
+                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all cursor-pointer ${
+                  !isPaused && speedMultiplier === spd
+                    ? 'bg-blue-500 text-white'
+                    : 'text-white/50 hover:text-white'
+                }`}
+              >
+                {spd}x
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

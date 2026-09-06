@@ -2,13 +2,10 @@ export const TRACKS = [
   { file: "01RedGiant.ogg", name: "Red Giant" },
   { file: "02Airglow.ogg", name: "Airglow" },
   { file: "03Eternity.ogg", name: "Eternity" },
-  { file: "04LightYears.ogg", name: "Light Years" },
-  { file: "05InTime.ogg", name: "In Time" },
   { file: "06CometHalley.ogg", name: "Comet Halley" },
   { file: "07ToTheGreatBeyond.ogg", name: "To The Great Beyond" },
   { file: "08TheDivineCosmos.ogg", name: "The Divine Cosmos" },
-  { file: "09Penumbra.ogg", name: "Penumbra" },
-  { file: "10Twilight.ogg", name: "Twilight" }
+  { file: "09Penumbra.ogg", name: "Penumbra" }
 ];
 
 type TrackListener = (trackName: string | null) => void;
@@ -25,6 +22,10 @@ class MusicEngine {
     this.audio = new Audio();
     this.audio.volume = this.volume;
     this.audio.addEventListener('ended', () => this.nextTrack());
+    this.audio.addEventListener('error', () => {
+      console.warn("Audio error, skipping to next track...");
+      this.nextTrack();
+    });
     
     // Start with a random track
     this.currentTrackIndex = Math.floor(Math.random() * TRACKS.length);
@@ -48,8 +49,8 @@ class MusicEngine {
     this.audio.play().then(() => {
       this.notify();
     }).catch(e => {
-      console.warn("Failed to play track, trying next...", e);
-      // Auto-skip if file not found (e.g., user hasn't downloaded them yet)
+      console.warn("Failed to play track, trying next in 2s...", e);
+      // Auto-skip if file not found or browser blocked autoplay
       setTimeout(() => this.nextTrack(), 2000);
     });
   }

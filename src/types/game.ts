@@ -89,7 +89,7 @@ export interface LevelConfig {
   activeFactions: FactionId[];
 }
 
-export type GameState = 'menu' | 'playing' | 'paused' | 'victory' | 'defeat' | 'editor' | 'cinematic';
+export type GameState = 'menu' | 'playing' | 'multiplayer_playing' | 'paused' | 'victory' | 'defeat' | 'editor' | 'cinematic';
 
 export interface GameStats {
   shipsProduced: number;

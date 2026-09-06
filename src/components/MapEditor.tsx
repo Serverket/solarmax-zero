@@ -110,7 +110,7 @@ export const MapEditor: React.FC<MapEditorProps> = ({ initialPlanets, initialMap
   return (
     <div className="absolute inset-0 z-40 flex flex-col bg-[#0a0a14]">
       {/* Canvas Layer */}
-      <div className="absolute inset-0 z-0">
+      <div className="absolute inset-0 z-0 game-canvas-container">
         <GameCanvas
           planets={planets}
           ships={[]}

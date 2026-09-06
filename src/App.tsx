@@ -11,6 +11,9 @@ import { SettingsMenu } from './components/SettingsMenu';
 import { CinematicOverlay } from './components/CinematicOverlay';
 import { AuthModal } from './components/AuthModal';
 import { AdminDashboard } from './components/AdminDashboard';
+import { MultiplayerLobbyModal } from './components/MultiplayerLobbyModal';
+import { LobbyManager } from './engine/multiplayer/LobbyManager';
+import { SyncEngine } from './engine/multiplayer/SyncEngine';
 import { updatePhysics, launchFleets, runAIDecisions, type PhysicsEngineState } from './engine/physics';
 import { CAMPAIGN_LEVELS, MOTHERSHIP_LEVELS } from './utils/levels';
 import { sound } from './utils/sound';
@@ -18,6 +21,7 @@ import { music } from './utils/music';
 import { setUnlockedLevel, saveCustomMap, unlockMothership, getMothershipUnlocked, syncProgressFromCloud, getLastPlayedLevel, setLastPlayedLevel } from './utils/storage';
 import { isSupabaseConfigured, supabase } from './lib/supabase';
 import type { LevelConfig, Planet, GameState } from './types/game';
+import { generateRandomLevel } from './utils/levels';
 
 function initLevel(level: LevelConfig): PhysicsEngineState {
   const planets: Planet[] = level.planets.map(p => ({
@@ -81,6 +85,10 @@ function App() {
 
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showAdminDashboard, setShowAdminDashboard] = useState(false);
+  
+  const [showMultiplayerLobby, setShowMultiplayerLobby] = useState(false);
+  const lobbyManagerRef = useRef<LobbyManager>(new LobbyManager());
+  const syncEngineRef = useRef<SyncEngine>(new SyncEngine(lobbyManagerRef.current));
 
   useEffect(() => { sound.setVolume(sfxVolume); }, [sfxVolume]);
   useEffect(() => { music.setVolume(musicVolume); }, [musicVolume]);
@@ -97,12 +105,35 @@ function App() {
   const physicsStateRef = useRef(physicsState);
   physicsStateRef.current = physicsState;
 
+  // Sync multiplayer state
+  useEffect(() => {
+    syncEngineRef.current.onStateUpdate((newState) => {
+      setPhysicsState(newState);
+      physicsStateRef.current = newState;
+    });
+
+    // Listen for guest game launch from host
+    lobbyManagerRef.current.onGameStart((level) => {
+      setCurrentLevel(level);
+      const initialSt = initLevel(level);
+      setPhysicsState(initialSt);
+      syncEngineRef.current.setLocalState(initialSt);
+      setSelectedPlanetIds([]);
+      setGameState('multiplayer_playing');
+      setShowMultiplayerLobby(false);
+      setShowLevelSelect(false);
+      setShowVictory(false);
+      setIsPaused(false);
+      music.init();
+    });
+  }, []);
+
   const lastTimeRef = useRef<number>(0);
   const aiAccumRef = useRef<number>(0);
 
   // Main game loop
   useEffect(() => {
-    if (gameState !== 'playing' || isPaused) {
+    if ((gameState !== 'playing' && gameState !== 'multiplayer_playing') || isPaused) {
       lastTimeRef.current = 0;
       return;
     }
@@ -122,32 +153,38 @@ function App() {
       setPhysicsState(prev => {
         let next = updatePhysics(prev, dt, sendPercentage, speedMultiplier);
 
-        // AI decisions every ~0.8 seconds
+        const isMultiplayer = gameState === 'multiplayer_playing';
+
+        // AI decisions every ~0.8 seconds (only if not in multiplayer, or if host?)
         aiAccumRef.current += dt * speedMultiplier;
         if (aiAccumRef.current >= 0.8) {
           aiAccumRef.current = 0;
-          next = runAIDecisions(next, sendPercentage);
+          if (!isMultiplayer || lobbyManagerRef.current.isHost) {
+            next = runAIDecisions(next, sendPercentage);
+          }
         }
 
         // Check victory/defeat (Supremacy Rules)
-        const playerPlanets = next.planets.filter(p => p.owner === 'player');
-        const playerShips = next.ships.filter(s => s.faction === 'player');
-        const isPlayerAlive = playerPlanets.length > 0 || playerShips.length > 0;
+        const myFaction = isMultiplayer ? lobbyManagerRef.current.myFaction : 'player';
 
-        const enemyPlanets = next.planets.filter(p => p.owner !== 'player' && p.owner !== 'neutral');
-        const enemyShips = next.ships.filter(s => s.faction !== 'player' && s.faction !== 'neutral');
+        const myPlanets = next.planets.filter(p => p.owner === myFaction);
+        const myShips = next.ships.filter(s => s.faction === myFaction);
+        const isMeAlive = myPlanets.length > 0 || myShips.length > 0;
+
+        const enemyPlanets = next.planets.filter(p => p.owner !== myFaction && p.owner !== 'neutral');
+        const enemyShips = next.ships.filter(s => s.faction !== myFaction && s.faction !== 'neutral');
         const areEnemiesAlive = enemyPlanets.length > 0 || enemyShips.length > 0;
 
-        if (!isPlayerAlive) {
+        if (!isMeAlive) {
           setVictory(false);
           setShowVictory(true);
           setGameState('defeat');
           sound.playDefeat();
         } else if (!areEnemiesAlive) {
-          if (currentLevel.id === 'lvl36') {
+          if (currentLevel.id === 'lvl36' && !isMultiplayer) {
             // Trigger the cinematic shockwave sequence once for lvl36
             setGameState('cinematic');
-            sound.playVictory(); // Or a custom deep bass drop if added to sound manager
+            sound.playVictory();
             if (!getMothershipUnlocked()) unlockMothership();
           } else {
             setVictory(true);
@@ -156,9 +193,11 @@ function App() {
             sound.playVictory();
             
             // Save progression if campaign level
-            const currentIdx = CAMPAIGN_LEVELS.findIndex(l => l.id === currentLevel.id);
-            if (currentIdx >= 0) {
-              setUnlockedLevel(currentIdx + 2); // unlock next level (1-indexed)
+            if (!isMultiplayer) {
+              const currentIdx = CAMPAIGN_LEVELS.findIndex(l => l.id === currentLevel.id);
+              if (currentIdx >= 0) {
+                setUnlockedLevel(currentIdx + 2); // unlock next level (1-indexed)
+              }
             }
           }
         }
@@ -171,12 +210,12 @@ function App() {
 
     animId = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animId);
-  }, [gameState, isPaused, speedMultiplier, sendPercentage]);
+  }, [gameState, isPaused, speedMultiplier, sendPercentage, currentLevel.id]);
 
   // Keyboard controls
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (gameState !== 'playing') return;
+      if (gameState !== 'playing' && gameState !== 'multiplayer_playing') return;
 
       if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') {
         setSendPercentage(prev => Math.max(0, prev - 0.1));
@@ -188,7 +227,9 @@ function App() {
         setSendPercentage(1.0);
       } else if (e.key === ' ') {
         e.preventDefault();
-        setIsPaused(prev => !prev);
+        if (gameState !== 'multiplayer_playing') {
+          setIsPaused(prev => !prev);
+        }
       }
     };
 
@@ -197,8 +238,13 @@ function App() {
   }, [gameState]);
 
   const handleLaunchFleets = useCallback((sourceIds: string[], targetId: string) => {
-    setPhysicsState(prev => launchFleets(sourceIds, targetId, prev, sendPercentage));
-  }, [sendPercentage]);
+    if (gameState === 'multiplayer_playing') {
+      const myFaction = lobbyManagerRef.current.myFaction;
+      syncEngineRef.current.emitLaunch(sourceIds, targetId, sendPercentage, myFaction);
+    } else {
+      setPhysicsState(prev => launchFleets(sourceIds, targetId, prev, sendPercentage));
+    }
+  }, [sendPercentage, gameState]);
 
   const handleSelectLevel = (level: LevelConfig) => {
     setCurrentLevel(level);
@@ -244,7 +290,8 @@ function App() {
   };
 
   const handleSelectAllPlayer = () => {
-    const playerIds = physicsState.planets.filter(p => p.owner === 'player').map(p => p.id);
+    const myFaction = gameState === 'multiplayer_playing' ? lobbyManagerRef.current.myFaction : 'player';
+    const playerIds = physicsState.planets.filter(p => p.owner === myFaction).map(p => p.id);
     setSelectedPlanetIds(playerIds);
     sound.playSelect();
   };
@@ -274,9 +321,9 @@ function App() {
 
   return (
     <div className="fixed inset-0 w-full h-[100dvh] overflow-hidden bg-[#0a0a14] overscroll-none touch-none">
-      {gameState === 'playing' || gameState === 'paused' || gameState === 'victory' || gameState === 'defeat' ? (
+      {gameState === 'playing' || gameState === 'multiplayer_playing' || gameState === 'paused' || gameState === 'victory' || gameState === 'defeat' ? (
         <>
-          <div className="w-full h-full sm:p-0 pt-[70px] pb-[90px]">
+          <div className="game-canvas-container">
             <GameCanvas
               planets={physicsState.planets}
               ships={physicsState.ships}
@@ -297,7 +344,11 @@ function App() {
             speedMultiplier={speedMultiplier}
             onSetSpeedMultiplier={setSpeedMultiplier}
             isPaused={isPaused}
-            onTogglePause={() => setIsPaused(p => !p)}
+            onTogglePause={() => {
+              if (gameState !== 'multiplayer_playing') {
+                setIsPaused(p => !p);
+              }
+            }}
             isMuted={isMuted}
             onToggleMute={handleToggleMute}
             onSelectAllPlayerPlanets={handleSelectAllPlayer}
@@ -307,13 +358,21 @@ function App() {
               setShowLevelSelect(true);
             }}
             settingsMenu={hudSettingsMenu}
+            isMultiplayer={gameState === 'multiplayer_playing'}
+            playerFaction={lobbyManagerRef.current.myFaction}
+            onLeaveMultiplayer={async () => {
+              await lobbyManagerRef.current.leaveRoom();
+              syncEngineRef.current.stopHostSyncLoop();
+              setGameState('menu');
+              setShowLevelSelect(true);
+            }}
           />
         </>
       ) : null}
 
       {gameState === 'cinematic' && (
         <>
-          <div className="w-full h-full sm:p-0 pt-[70px] pb-[90px]">
+          <div className="game-canvas-container">
             <GameCanvas
               planets={physicsState.planets}
               ships={physicsState.ships}
@@ -405,9 +464,47 @@ function App() {
               });
             }
           }}
+          onOpenMultiplayer={() => {
+            setShowLevelSelect(false);
+            setShowMultiplayerLobby(true);
+          }}
           settingsMenu={modalSettingsMenu}
         />
       )}
+
+      <MultiplayerLobbyModal
+        isOpen={showMultiplayerLobby}
+        onClose={async () => {
+          await lobbyManagerRef.current.leaveRoom();
+          setShowMultiplayerLobby(false);
+          setShowLevelSelect(true);
+        }}
+        lobbyManager={lobbyManagerRef.current}
+        onStartGame={() => {
+          const playerCount = Math.max(2, lobbyManagerRef.current.players.size);
+          const arenaLevel = generateRandomLevel(playerCount, 10);
+          arenaLevel.name = `Arena Sector ${lobbyManagerRef.current.roomId || ''}`;
+          
+          lobbyManagerRef.current.startGame(arenaLevel);
+          
+          setCurrentLevel(arenaLevel);
+          const initialSt = initLevel(arenaLevel);
+          setPhysicsState(initialSt);
+          syncEngineRef.current.setLocalState(initialSt);
+          setSelectedPlanetIds([]);
+          
+          setGameState('multiplayer_playing');
+          setShowMultiplayerLobby(false);
+          setShowLevelSelect(false);
+          setShowVictory(false);
+          setIsPaused(false);
+          music.init();
+          
+          if (lobbyManagerRef.current.isHost) {
+            syncEngineRef.current.startHostSyncLoop();
+          }
+        }}
+      />
 
       {showVictory && (
         <VictoryModal
@@ -415,7 +512,16 @@ function App() {
           stats={physicsState.stats}
           onNextLevel={handleNextLevel}
           onRestart={handleRestart}
-          onLevelSelect={() => { setShowVictory(false); setShowLevelSelect(true); }}
+          onLevelSelect={async () => { 
+            setShowVictory(false); 
+            if (gameState === 'multiplayer_playing') {
+              await lobbyManagerRef.current.leaveRoom();
+              syncEngineRef.current.stopHostSyncLoop();
+              setGameState('menu');
+            }
+            setShowLevelSelect(true); 
+          }}
+          isMultiplayer={gameState === 'multiplayer_playing'}
         />
       )}
 

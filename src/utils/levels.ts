@@ -522,12 +522,11 @@ export function generateRandomLevel(factionCount: number, planetCount: number): 
   // Player starts left, others spread around
   factions.forEach((faction, i) => {
     const angle = (i / factions.length) * Math.PI * 2 - Math.PI / 2;
-    const dist = 400;
-    const cx = 600 + Math.cos(angle) * dist;
-    const cy = 400 + Math.sin(angle) * dist;
+    const cx = 600 + Math.cos(angle) * 440;
+    const cy = 400 + Math.sin(angle) * 270;
     planets.push(mkPlanet(
-      Math.max(80, Math.min(1120, cx)),
-      Math.max(80, Math.min(720, cy)),
+      Math.max(100, Math.min(1100, cx)),
+      Math.max(130, Math.min(670, cy)),
       30, faction, 15, 48
     ));
   });
@@ -541,7 +540,7 @@ export function generateRandomLevel(factionCount: number, planetCount: number): 
     while (!valid && attempts < 200) {
       attempts++;
       x = 150 + Math.random() * 900;
-      y = 120 + Math.random() * 560;
+      y = 140 + Math.random() * 520;
       r = 20 + Math.random() * 14;
       valid = true;
       for (const p of planets) {

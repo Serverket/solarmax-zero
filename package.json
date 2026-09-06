@@ -1,7 +1,7 @@
 {
   "name": "solarmax-zero",
   "private": true,
-  "version": "1.8.3",
+  "version": "1.8.9",
   "type": "module",
   "scripts": {
     "dev": "vite",

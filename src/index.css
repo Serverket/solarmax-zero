@@ -117,3 +117,18 @@ body, html, #root {
   }
 }
 
+/* Prevent planets and game entities from going under HUD on small phones */
+.game-canvas-container {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+@media screen and (max-height: 500px) {
+  .game-canvas-container {
+    padding-top: calc(max(env(safe-area-inset-top), 0px) + 54px);
+    padding-bottom: calc(max(env(safe-area-inset-bottom), 0px) + 50px);
+  }
+}
+

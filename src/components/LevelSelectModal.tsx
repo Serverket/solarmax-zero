@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Play, X, Swords, Layers, Settings, Trash2, Map, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import { Play, X, Swords, Layers, Settings, Trash2, Map, ChevronLeft, ChevronRight, Plus, Users } from 'lucide-react';
 import type { LevelConfig } from '../types/game';
 import { CAMPAIGN_LEVELS, MOTHERSHIP_LEVELS, generateRandomLevel } from '../utils/levels';
 import { GAME_VERSION, GAME_NAME } from '../utils/version';
@@ -14,6 +14,7 @@ interface LevelSelectModalProps {
   currentLevelId: string;
   isGameActive?: boolean;
   onOpenMapEditor?: (map?: CustomMap) => void;
+  onOpenMultiplayer?: () => void;
   settingsMenu?: React.ReactNode;
 }
 
@@ -24,6 +25,7 @@ export const LevelSelectModal: React.FC<LevelSelectModalProps> = ({
   currentLevelId,
   isGameActive,
   onOpenMapEditor,
+  onOpenMultiplayer,
   settingsMenu,
 }) => {
   const [tab, setTab] = useState<'campaign' | 'skirmish' | 'custom'>('campaign');
@@ -115,10 +117,10 @@ export const LevelSelectModal: React.FC<LevelSelectModalProps> = ({
           
           {/* Tabs */}
           <div className="flex justify-between items-start mb-2 sm:mb-4 shrink-0">
-            <div className="flex gap-2 sm:gap-4 flex-1">
+            <div className="flex gap-1.5 sm:gap-2 flex-1">
             <button
               onClick={() => setTab('campaign')}
-              className={`flex-1 py-1.5 sm:py-2.5 rounded-md text-[9px] sm:text-xs font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1 sm:gap-2 border whitespace-nowrap min-w-0 px-1 ${
+              className={`flex-1 py-1.5 sm:py-2.5 rounded-md text-[9px] sm:text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1 sm:gap-1.5 border whitespace-nowrap min-w-0 px-1 ${
                 tab === 'campaign' 
                   ? themeGlow
                   : 'bg-black/20 text-white/40 hover:bg-white/5 hover:text-white/80 border-white/5'
@@ -129,7 +131,7 @@ export const LevelSelectModal: React.FC<LevelSelectModalProps> = ({
             </button>
             <button
               onClick={() => setTab('skirmish')}
-              className={`flex-1 py-1.5 sm:py-2.5 rounded-md text-[9px] sm:text-xs font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1 sm:gap-2 border whitespace-nowrap min-w-0 px-1 ${
+              className={`flex-1 py-1.5 sm:py-2.5 rounded-md text-[9px] sm:text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1 sm:gap-1.5 border whitespace-nowrap min-w-0 px-1 ${
                 tab === 'skirmish' 
                   ? 'glass-panel-glow-white text-white border-white/50 shadow-[0_0_20px_rgba(255,255,255,0.2)]' 
                   : 'bg-black/20 text-white/40 hover:bg-white/5 hover:text-white/80 border-white/5'
@@ -140,14 +142,21 @@ export const LevelSelectModal: React.FC<LevelSelectModalProps> = ({
             </button>
             <button
               onClick={() => setTab('custom')}
-              className={`flex-1 py-1.5 sm:py-2.5 rounded-md text-[9px] sm:text-xs font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1 sm:gap-2 border whitespace-nowrap min-w-0 px-1 ${
+              className={`flex-1 py-1.5 sm:py-2.5 rounded-md text-[9px] sm:text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1 sm:gap-1.5 border whitespace-nowrap min-w-0 px-1 ${
                 tab === 'custom' 
                   ? 'glass-panel-glow-white text-white border-white/50 shadow-[0_0_20px_rgba(255,255,255,0.2)]' 
                   : 'bg-black/20 text-white/40 hover:bg-white/5 hover:text-white/80 border-white/5'
               }`}
             >
               <Map className="w-3 h-3 sm:w-4 sm:h-4 shrink-0" />
-              <span className="hidden sm:inline">Custom Maps</span>
+              <span className="hidden sm:inline">Custom</span>
+            </button>
+            <button
+              onClick={() => { if (onOpenMultiplayer) onOpenMultiplayer(); }}
+              className={`flex-1 py-1.5 sm:py-2.5 rounded-md text-[9px] sm:text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1 sm:gap-1.5 border whitespace-nowrap min-w-0 px-1 bg-[#00f0ff]/10 text-[#00f0ff] hover:bg-[#00f0ff]/30 hover:text-white border-[#00f0ff]/50 shadow-[0_0_15px_rgba(0,240,255,0.2)]`}
+            >
+              <Users className="w-3 h-3 sm:w-4 sm:h-4 shrink-0" />
+              <span className="hidden sm:inline">Online</span>
             </button>
             </div>
           </div>
