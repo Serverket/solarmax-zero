@@ -645,7 +645,8 @@ export function launchFleets(
   sourcePlanetIds: string[],
   targetPlanetId: string,
   state: PhysicsEngineState,
-  sendRatio: number
+  sendRatio: number,
+  overrideFaction?: FactionId
 ): PhysicsEngineState {
   const target = state.planets.find(p => p.id === targetPlanetId);
   if (!target) return state;
@@ -656,10 +657,12 @@ export function launchFleets(
 
   sourcePlanetIds.forEach(sourceId => {
     const source = nextPlanets.find(p => p.id === sourceId);
-    if (!source || source.id === targetPlanetId || source.ships < 1) return;
+    if (!source || source.id === targetPlanetId) return;
+    if (source.ships < 1 && !overrideFaction) return;
 
-    const countToLaunch = Math.max(1, Math.floor(source.ships * sendRatio));
-    source.ships -= countToLaunch;
+    const availableShips = Math.max(1, source.ships);
+    const countToLaunch = Math.max(1, Math.floor(availableShips * sendRatio));
+    source.ships = Math.max(0, source.ships - countToLaunch);
     totalLaunched += countToLaunch;
 
     let actualTarget = target;
@@ -701,7 +704,7 @@ export function launchFleets(
 
       newShips.push({
         id: `ship-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
-        faction: source.owner,
+        faction: overrideFaction || source.owner,
         x: startX,
         y: startY,
         vx: Math.cos(spreadAngle) * 60,
@@ -727,8 +730,13 @@ export function launchFleets(
   };
 }
 
-export function runAIDecisions(state: PhysicsEngineState, _sendRatio: number): PhysicsEngineState {
-  const aiFactions: FactionId[] = ['ai1', 'ai2', 'ai3', 'ai4'];
+export function runAIDecisions(
+  state: PhysicsEngineState, 
+  _sendRatio: number, 
+  activeHumanFactions: FactionId[] = ['player'],
+  onAILaunch?: (sourceIds: string[], targetId: string, ratio: number, faction: FactionId) => void
+): PhysicsEngineState {
+  const aiFactions: FactionId[] = ['ai1', 'ai2', 'ai3', 'ai4'].filter(f => !activeHumanFactions.includes(f as FactionId)) as FactionId[];
   let updatedState = { ...state };
 
   aiFactions.forEach(aiFaction => {
@@ -792,7 +800,11 @@ export function runAIDecisions(state: PhysicsEngineState, _sendRatio: number): P
       const bt = bestTarget as Planet | null;
       if (bt) {
         const ratio = bt.owner === 'neutral' ? 0.5 : 0.8; // commit more to non-neutral
-        updatedState = launchFleets([source.id], bt.id, updatedState, ratio);
+        if (onAILaunch) {
+          onAILaunch([source.id], bt.id, ratio, aiFaction);
+        } else {
+          updatedState = launchFleets([source.id], bt.id, updatedState, ratio);
+        }
       }
     });
 
@@ -815,7 +827,11 @@ export function runAIDecisions(state: PhysicsEngineState, _sendRatio: number): P
             const d2 = Math.sqrt((closest.x - back.x) ** 2 + (closest.y - back.y) ** 2);
             return d1 < d2 ? front : closest;
           });
-          updatedState = launchFleets([back.id], closest.id, updatedState, 0.5);
+          if (onAILaunch) {
+            onAILaunch([back.id], closest.id, 0.5, aiFaction);
+          } else {
+            updatedState = launchFleets([back.id], closest.id, updatedState, 0.5);
+          }
         }
       });
     }

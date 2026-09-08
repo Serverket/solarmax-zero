@@ -4,22 +4,35 @@ import { sound } from '../utils/sound';
 import { FACTIONS } from '../utils/levels';
 import type { LobbyManager, RoomState } from '../engine/multiplayer/LobbyManager';
 import type { FactionId } from '../types/game';
+import { QuotaManager } from '../lib/quota-manager';
 
 interface MultiplayerLobbyModalProps {
   isOpen: boolean;
   onClose: () => void;
   lobbyManager: LobbyManager;
   onStartGame: () => void;
+  onRequireAuth?: () => void;
 }
 
 const FACTION_KEYS: FactionId[] = ['player', 'ai1', 'ai2', 'ai3', 'ai4'];
 
-export function MultiplayerLobbyModal({ isOpen, onClose, lobbyManager, onStartGame }: MultiplayerLobbyModalProps) {
+export function MultiplayerLobbyModal({ isOpen, onClose, lobbyManager, onStartGame, onRequireAuth }: MultiplayerLobbyModalProps) {
   const [roomState, setRoomState] = useState<RoomState | null>(null);
   const [joinCode, setJoinCode] = useState('');
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [remainingSeconds, setRemainingSeconds] = useState<number>(Infinity);
+
+  useEffect(() => {
+    if (isOpen) {
+      setRemainingSeconds(QuotaManager.getRemainingSeconds(lobbyManager.profile));
+      const interval = setInterval(() => {
+        setRemainingSeconds(QuotaManager.getRemainingSeconds(lobbyManager.profile));
+      }, 10000);
+      return () => clearInterval(interval);
+    }
+  }, [isOpen, lobbyManager.profile]);
 
   useEffect(() => {
     if (isOpen) {
@@ -88,6 +101,7 @@ export function MultiplayerLobbyModal({ isOpen, onClose, lobbyManager, onStartGa
 
   const myFaction = lobbyManager.myFaction;
   const myFactionInfo = FACTIONS[myFaction] || FACTIONS.player;
+  const isQuotaExceeded = remainingSeconds <= 0;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-1.5 sm:p-2 [@media(min-height:550px)]:p-4 pb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)] pt-[max(env(safe-area-inset-top),0.5rem)] pl-[max(env(safe-area-inset-left),0.5rem)] pr-[max(env(safe-area-inset-right),0.5rem)] bg-black/85 backdrop-blur-md animate-fade-in touch-none overflow-hidden select-none">
@@ -101,7 +115,7 @@ export function MultiplayerLobbyModal({ isOpen, onClose, lobbyManager, onStartGa
               MULTIPLAYER LOBBY
             </h2>
             <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[#00f0ff]/10 text-[#00f0ff] border border-[#00f0ff]/30 tracking-widest hidden sm:inline">
-              WEBRTC P2P
+              REALTIME ARENA
             </span>
           </div>
           <button 
@@ -119,6 +133,25 @@ export function MultiplayerLobbyModal({ isOpen, onClose, lobbyManager, onStartGa
           </div>
         )}
 
+        {/* Quota Banner */}
+        {remainingSeconds !== Infinity && !roomState && (
+          <div className={`mb-2 p-1.5 sm:p-2 border ${isQuotaExceeded ? 'border-red-500/50 bg-red-950/40' : 'border-yellow-500/50 bg-yellow-950/40'} flex flex-col sm:flex-row justify-between items-center rounded shrink-0 gap-2`}>
+            <div className="flex items-center gap-2">
+              <span className={`font-orbitron font-bold text-xs ${isQuotaExceeded ? 'text-red-400' : 'text-yellow-400'}`}>
+                {isQuotaExceeded ? 'GUEST QUOTA EXCEEDED' : `GUEST QUOTA: ${Math.max(0, Math.ceil(remainingSeconds / 60))} MINS REMAINING TODAY`}
+              </span>
+            </div>
+            {isQuotaExceeded && (
+              <button
+                onClick={onRequireAuth}
+                className="px-3 py-1 bg-red-500/20 hover:bg-red-500 text-red-400 hover:text-white border border-red-500 font-orbitron font-bold text-xs rounded transition-colors"
+              >
+                REGISTER NOW
+              </button>
+            )}
+          </div>
+        )}
+
         {!roomState ? (
           /* INITIAL VIEW: HOST OR JOIN (100% SYMMETRICAL & ALIGNED) */
           <div className="flex flex-row gap-2 sm:gap-3 [@media(min-width:768px)_and_(min-height:550px)]:gap-4 flex-1 min-h-0 overflow-hidden">
@@ -132,7 +165,7 @@ export function MultiplayerLobbyModal({ isOpen, onClose, lobbyManager, onStartGa
                   HOST ARENA
                 </h3>
                 <p className="text-white/70 font-rajdhani text-[10px] sm:text-[11px] [@media(min-width:768px)_and_(min-height:550px)]:text-xs max-w-xs mb-1.5 sm:mb-2 line-clamp-2 shrink-0">
-                  Create a private tactical lobby for up to 5 commanders via WebRTC P2P mesh.
+                  Create a private tactical lobby for up to 5 commanders via Realtime synchronization.
                 </p>
                 {/* Fixed-height container to match Guest Card's input box */}
                 <div className="h-8 sm:h-9 [@media(min-width:768px)_and_(min-height:550px)]:h-11 flex items-center justify-center gap-1.5 shrink-0">
@@ -142,10 +175,10 @@ export function MultiplayerLobbyModal({ isOpen, onClose, lobbyManager, onStartGa
               </div>
               <button
                 onClick={handleCreateRoom}
-                disabled={loading}
-                className="w-full h-8 sm:h-9 [@media(min-width:768px)_and_(min-height:550px)]:h-11 mt-1.5 sm:mt-2 bg-[#00f0ff]/20 hover:bg-[#00f0ff] hover:text-black text-[#00f0ff] border border-[#00f0ff] font-orbitron font-bold tracking-widest text-[10px] sm:text-[11px] [@media(min-width:768px)_and_(min-height:550px)]:text-xs rounded-lg transition-all duration-200 shadow-[0_0_15px_rgba(0,240,255,0.2)] disabled:opacity-50 cursor-pointer shrink-0 flex items-center justify-center"
+                disabled={loading || isQuotaExceeded}
+                className="w-full h-8 sm:h-9 [@media(min-width:768px)_and_(min-height:550px)]:h-11 mt-1.5 sm:mt-2 bg-[#00f0ff]/20 hover:bg-[#00f0ff] hover:text-black text-[#00f0ff] border border-[#00f0ff] font-orbitron font-bold tracking-widest text-[10px] sm:text-[11px] [@media(min-width:768px)_and_(min-height:550px)]:text-xs rounded-lg transition-all duration-200 shadow-[0_0_15px_rgba(0,240,255,0.2)] disabled:opacity-50 disabled:hover:bg-[#00f0ff]/20 disabled:hover:text-[#00f0ff] cursor-pointer shrink-0 flex items-center justify-center"
               >
-                {loading ? 'INITIALIZING...' : 'CREATE ROOM'}
+                {loading ? 'INITIALIZING...' : (isQuotaExceeded ? 'LOCKED' : 'CREATE ROOM')}
               </button>
             </div>
 
@@ -179,10 +212,10 @@ export function MultiplayerLobbyModal({ isOpen, onClose, lobbyManager, onStartGa
               </div>
               <button
                 onClick={handleJoinRoom}
-                disabled={loading || joinCode.length !== 6}
-                className="w-full h-8 sm:h-9 [@media(min-width:768px)_and_(min-height:550px)]:h-11 mt-1.5 sm:mt-2 bg-white/10 hover:bg-[#00f0ff] hover:text-black text-white hover:border-[#00f0ff] border border-white/20 font-orbitron font-bold tracking-widest text-[10px] sm:text-[11px] [@media(min-width:768px)_and_(min-height:550px)]:text-xs rounded-lg transition-all duration-200 disabled:opacity-40 cursor-pointer shrink-0 flex items-center justify-center"
+                disabled={loading || joinCode.length !== 6 || isQuotaExceeded}
+                className="w-full h-8 sm:h-9 [@media(min-width:768px)_and_(min-height:550px)]:h-11 mt-1.5 sm:mt-2 bg-white/10 hover:bg-[#00f0ff] hover:text-black text-white hover:border-[#00f0ff] border border-white/20 font-orbitron font-bold tracking-widest text-[10px] sm:text-[11px] [@media(min-width:768px)_and_(min-height:550px)]:text-xs rounded-lg transition-all duration-200 disabled:opacity-40 disabled:hover:bg-white/10 disabled:hover:text-white disabled:hover:border-white/20 cursor-pointer shrink-0 flex items-center justify-center"
               >
-                {loading ? 'CONNECTING...' : 'JOIN ROOM'}
+                {loading ? 'CONNECTING...' : (isQuotaExceeded ? 'LOCKED' : 'JOIN ROOM')}
               </button>
             </div>
           </div>

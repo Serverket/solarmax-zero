@@ -1,5 +1,4 @@
 import { supabase } from '../../lib/supabase';
-import { NetworkClient } from './NetworkClient';
 import { AuthManager } from '../../lib/auth-manager';
 import type { PlayerProfile } from '../../lib/auth-manager';
 import type { FactionId, LevelConfig } from '../../types/game';
@@ -12,6 +11,8 @@ export interface RoomState {
   status: 'waiting' | 'starting' | 'playing';
 }
 
+export const FACTION_SLOTS: FactionId[] = ['player', 'ai1', 'ai2', 'ai3', 'ai4'];
+
 export class LobbyManager {
   private channel?: RealtimeChannel;
   public profile?: PlayerProfile;
@@ -19,10 +20,13 @@ export class LobbyManager {
   
   public isHost: boolean = false;
   public players: Map<string, PlayerProfile> = new Map();
-  public clients: Map<string, NetworkClient> = new Map();
+  public hostId?: string;
 
   private onRoomUpdateCallback?: (state: RoomState | null) => void;
   private onGameStartCallback?: (level: LevelConfig) => void;
+  private onGameActionCallback?: (action: any) => void;
+  private onHostSyncCallback?: (payload: any) => void;
+  private onPlayerLeftCallback?: (playerId: string) => void;
 
   constructor() {}
 
@@ -33,56 +37,140 @@ export class LobbyManager {
   public get myFaction(): FactionId {
     const playerArray = Array.from(this.players.values());
     const myIndex = playerArray.findIndex(p => p.id === this.profile?.id);
-    const factionKeys: FactionId[] = ['player', 'ai1', 'ai2', 'ai3', 'ai4'];
-    return factionKeys[Math.max(0, myIndex)] || 'player';
+    if (myIndex >= 0 && myIndex < FACTION_SLOTS.length) {
+      return FACTION_SLOTS[myIndex];
+    }
+    return this.isHost ? 'player' : 'ai1';
   }
 
   public getPlayerFaction(playerId: string): FactionId {
     const playerArray = Array.from(this.players.values());
     const idx = playerArray.findIndex(p => p.id === playerId);
-    const factionKeys: FactionId[] = ['player', 'ai1', 'ai2', 'ai3', 'ai4'];
-    return factionKeys[Math.max(0, idx)] || 'player';
+    if (idx >= 0 && idx < FACTION_SLOTS.length) {
+      return FACTION_SLOTS[idx];
+    }
+    return 'player';
+  }
+
+  public getActivePlayerFactions(): FactionId[] {
+    const factions: FactionId[] = [];
+    const playerArray = Array.from(this.players.values());
+    playerArray.forEach((_, idx) => {
+       factions.push(FACTION_SLOTS[idx] || 'player');
+    });
+    return factions;
   }
 
   async createRoom(): Promise<string> {
     await this.initProfile();
+    await this.cleanupChannel();
+
     this.roomId = Math.random().toString(36).substring(2, 8).toUpperCase();
     this.isHost = true;
+    this.hostId = this.profile!.id;
+    this.players.clear();
     this.players.set(this.profile!.id, this.profile!);
     
-    await this.joinChannel(this.roomId);
+    await this.setupChannel(this.roomId);
     this.emitRoomUpdate();
     return this.roomId;
   }
 
   async joinRoom(roomId: string): Promise<boolean> {
     await this.initProfile();
-    this.roomId = roomId.toUpperCase();
-    this.isHost = false;
-    this.players.set(this.profile!.id, this.profile!);
-    
-    await this.joinChannel(this.roomId);
-    
-    // Anunciar presencia
-    this.channel?.send({
-      type: 'broadcast',
-      event: 'player_joined',
-      payload: { profile: this.profile }
-    });
+    await this.cleanupChannel();
 
-    return true;
+    const cleanRoomId = roomId.trim().toUpperCase();
+    this.roomId = cleanRoomId;
+    this.isHost = false;
+    this.players.clear();
+
+    await this.setupChannel(cleanRoomId);
+
+    // Request join from Host and wait for authoritative lobby_sync confirmation
+    return new Promise<boolean>((resolve, reject) => {
+      let resolved = false;
+      let pingInterval: any = null;
+
+      const timer = setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          if (pingInterval) clearInterval(pingInterval);
+          this.leaveRoom();
+          reject(new Error("Room not found or host is offline."));
+        }
+      }, 6000);
+
+      const checkJoined = (state: RoomState | null) => {
+        if (state && state.players.some(p => p.id === this.profile?.id)) {
+          if (!resolved) {
+            resolved = true;
+            clearTimeout(timer);
+            if (pingInterval) clearInterval(pingInterval);
+            this.onRoomUpdateCallback = prevCallback;
+            resolve(true);
+          }
+        }
+      };
+
+      const prevCallback = this.onRoomUpdateCallback;
+      this.onRoomUpdateCallback = (state) => {
+        if (prevCallback) prevCallback(state);
+        checkJoined(state);
+      };
+
+      // Periodic announce to prevent packet drops over connection handshake
+      const announce = () => {
+        if (!resolved && this.channel) {
+          this.channel.send({
+            type: 'broadcast',
+            event: 'player_joined',
+            payload: { profile: this.profile }
+          }).catch(console.warn);
+        }
+      };
+
+      announce();
+      pingInterval = setInterval(announce, 1200);
+    });
   }
 
   public startGame(level: LevelConfig) {
-    if (!this.isHost) return;
-    this.channel?.send({
+    if (!this.isHost || !this.channel) return;
+    
+    const payload = {
+      level,
+      hostId: this.profile!.id,
+      players: Array.from(this.players.values())
+    };
+
+    this.channel.send({
       type: 'broadcast',
       event: 'game_start',
-      payload: { level }
+      payload
     });
+
     if (this.onGameStartCallback) {
       this.onGameStartCallback(level);
     }
+  }
+
+  public broadcastGameAction(action: any) {
+    if (!this.channel) return;
+    this.channel.send({
+      type: 'broadcast',
+      event: 'game_action',
+      payload: action
+    });
+  }
+
+  public broadcastHostSync(payload: any) {
+    if (!this.channel || !this.isHost) return;
+    this.channel.send({
+      type: 'broadcast',
+      event: 'host_sync',
+      payload
+    });
   }
 
   public async leaveRoom() {
@@ -98,140 +186,170 @@ export class LobbyManager {
           console.warn("Could not broadcast player_left", e);
         }
       }
-      await this.channel.unsubscribe();
-      this.channel = undefined;
+      await this.cleanupChannel();
     }
-    this.clients.forEach(c => c.close());
-    this.clients.clear();
     this.players.clear();
     this.roomId = undefined;
     this.isHost = false;
+    this.hostId = undefined;
     if (this.onRoomUpdateCallback) {
       this.onRoomUpdateCallback(null);
     }
   }
 
-  private async joinChannel(roomId: string) {
-    if (!supabase) throw new Error("Supabase is not configured for signaling.");
-    
-    this.channel = supabase.channel(`room:${roomId}`, {
-      config: { broadcast: { ack: true } }
+  private async cleanupChannel() {
+    if (this.channel) {
+      try {
+        await this.channel.unsubscribe();
+      } catch (e) {
+        console.warn("Error unsubscribing channel", e);
+      }
+      this.channel = undefined;
+    }
+  }
+
+  private async setupChannel(roomId: string) {
+    if (!supabase) throw new Error("Supabase is not configured for multiplayer.");
+
+    const channel = supabase.channel(`room:${roomId}`, {
+      config: { 
+        broadcast: { ack: false } 
+      }
     });
 
-    this.channel.on('broadcast', { event: 'player_joined' }, async (payload) => {
-      const p = payload.payload.profile as PlayerProfile;
+    const extractData = (payload: any) => payload?.payload ?? payload;
+
+    // 1. Host receives join request
+    channel.on('broadcast', { event: 'player_joined' }, (payload) => {
+      const data = extractData(payload);
+      const p = data?.profile as PlayerProfile;
+      if (!p || !this.isHost) return;
+
       if (!this.players.has(p.id)) {
-        if (this.isHost && this.players.size >= 5) {
-          // Reject (Límite 5)
-          this.channel?.send({ type: 'broadcast', event: 'room_full', payload: { targetId: p.id } });
+        if (this.players.size >= 5) {
+          channel.send({ type: 'broadcast', event: 'room_full', payload: { targetId: p.id } });
           return;
         }
 
         this.players.set(p.id, p);
+        this.broadcastLobbySync();
         this.emitRoomUpdate();
-        
-        // El host inicia la conexión WebRTC
-        if (this.isHost) {
-          await this.initiateWebRTC(p.id);
-          // Broadcast state to sync everyone
-          this.channel?.send({ type: 'broadcast', event: 'sync_state', payload: { players: Array.from(this.players.values()) } });
-        }
+      } else {
+        // Player re-announced, re-broadcast sync
+        this.broadcastLobbySync();
       }
     });
 
-    this.channel.on('broadcast', { event: 'sync_state' }, (payload) => {
-      if (!this.isHost) {
-        const remotePlayers = payload.payload.players as PlayerProfile[];
+    // 2. Guests receive authoritative lobby sync from Host
+    channel.on('broadcast', { event: 'lobby_sync' }, (payload) => {
+      if (this.isHost) return;
+      const data = extractData(payload);
+      const remotePlayers = data?.players as PlayerProfile[];
+      const remoteHostId = data?.hostId as string;
+
+      if (remotePlayers && Array.isArray(remotePlayers)) {
         this.players.clear();
         remotePlayers.forEach(p => this.players.set(p.id, p));
+        this.hostId = remoteHostId;
         this.emitRoomUpdate();
       }
     });
 
-    this.channel.on('broadcast', { event: 'game_start' }, (payload) => {
-      if (this.onGameStartCallback) {
-        this.onGameStartCallback(payload.payload.level);
+    // 3. Room full notification
+    channel.on('broadcast', { event: 'room_full' }, (payload) => {
+      const data = extractData(payload);
+      if (data?.targetId === this.profile?.id) {
+        this.leaveRoom();
+        if (this.onRoomUpdateCallback) this.onRoomUpdateCallback(null);
       }
     });
 
-    this.channel.on('broadcast', { event: 'player_left' }, (payload) => {
-      const id = payload.payload.playerId as string;
+    // 4. Game start notification
+    channel.on('broadcast', { event: 'game_start' }, (payload) => {
+      const data = extractData(payload);
+      const level = data?.level as LevelConfig;
+      const remotePlayers = data?.players as PlayerProfile[];
+      const remoteHostId = data?.hostId as string;
+
+      if (remotePlayers && Array.isArray(remotePlayers)) {
+        this.players.clear();
+        remotePlayers.forEach(p => this.players.set(p.id, p));
+        this.hostId = remoteHostId;
+      }
+
+      if (this.onGameStartCallback && level) {
+        this.onGameStartCallback(level);
+      }
+    });
+
+    // 5. In-game action broadcast (fleet launches)
+    channel.on('broadcast', { event: 'game_action' }, (payload) => {
+      const data = extractData(payload);
+      if (this.onGameActionCallback && data) {
+        this.onGameActionCallback(data);
+      }
+    });
+
+    // 6. Host periodic state sync
+    channel.on('broadcast', { event: 'host_sync' }, (payload) => {
+      const data = extractData(payload);
+      if (!this.isHost && this.onHostSyncCallback && data) {
+        this.onHostSyncCallback(data);
+      }
+    });
+
+    // 7. Player left / disconnected
+    channel.on('broadcast', { event: 'player_left' }, (payload) => {
+      const data = extractData(payload);
+      const id = data?.playerId as string;
+      if (!id) return;
+
+      if (id === this.hostId && !this.isHost) {
+        // Host left the match
+        if (this.onPlayerLeftCallback) {
+          this.onPlayerLeftCallback(id);
+        }
+        this.leaveRoom();
+        return;
+      }
+
       if (this.players.has(id)) {
         this.players.delete(id);
-        const client = this.clients.get(id);
-        if (client) {
-          client.close();
-          this.clients.delete(id);
+        if (this.isHost) {
+          this.broadcastLobbySync();
         }
         this.emitRoomUpdate();
+        if (this.onPlayerLeftCallback) {
+          this.onPlayerLeftCallback(id);
+        }
       }
     });
 
-    this.channel.on('broadcast', { event: 'webrtc_offer' }, async (payload) => {
-      if (payload.payload.targetId === this.profile!.id) {
-        await this.handleWebRTCOffer(payload.payload.senderId, payload.payload.offer);
-      }
-    });
+    this.channel = channel;
 
-    this.channel.on('broadcast', { event: 'webrtc_answer' }, async (payload) => {
-      if (payload.payload.targetId === this.profile!.id) {
-        await this.handleWebRTCAnswer(payload.payload.senderId, payload.payload.answer);
-      }
-    });
-
-    this.channel.on('broadcast', { event: 'webrtc_ice' }, async (payload) => {
-      if (payload.payload.targetId === this.profile!.id) {
-        const client = this.clients.get(payload.payload.senderId);
-        if (client) await client.addIceCandidate(payload.payload.candidate);
-      }
-    });
-
-    await this.channel.subscribe();
-  }
-
-  private async initiateWebRTC(targetId: string) {
-    const client = new NetworkClient(targetId, true);
-    this.setupClientEvents(client, targetId);
-    
-    const offer = await client.createOffer();
-    this.clients.set(targetId, client);
-
-    this.channel?.send({
-      type: 'broadcast', event: 'webrtc_offer',
-      payload: { senderId: this.profile!.id, targetId, offer }
-    });
-  }
-
-  private async handleWebRTCOffer(senderId: string, offer: RTCSessionDescriptionInit) {
-    const client = new NetworkClient(senderId, false);
-    this.setupClientEvents(client, senderId);
-    this.clients.set(senderId, client);
-
-    const answer = await client.handleOffer(offer);
-    
-    this.channel?.send({
-      type: 'broadcast', event: 'webrtc_answer',
-      payload: { senderId: this.profile!.id, targetId: senderId, answer }
-    });
-  }
-
-  private async handleWebRTCAnswer(senderId: string, answer: RTCSessionDescriptionInit) {
-    const client = this.clients.get(senderId);
-    if (client) {
-      await client.handleAnswer(answer);
-    }
-  }
-
-  private setupClientEvents(client: NetworkClient, targetId: string) {
-    client.onIceCandidate((candidate) => {
-      this.channel?.send({
-        type: 'broadcast', event: 'webrtc_ice',
-        payload: { senderId: this.profile!.id, targetId, candidate }
+    // Await subscription confirmation before sending any broadcast
+    await new Promise<void>((resolve, reject) => {
+      channel.subscribe((status, err) => {
+        if (status === 'SUBSCRIBED') {
+          resolve();
+        } else if (status === 'CHANNEL_ERROR') {
+          reject(err || new Error("Failed to subscribe to room channel"));
+        } else if (status === 'TIMED_OUT') {
+          reject(new Error("Room subscription timed out"));
+        }
       });
     });
+  }
 
-    client.onStateChange((state) => {
-      console.log(`WebRTC state with ${targetId}: ${state}`);
+  private broadcastLobbySync() {
+    if (!this.channel || !this.isHost) return;
+    this.channel.send({
+      type: 'broadcast',
+      event: 'lobby_sync',
+      payload: {
+        hostId: this.profile!.id,
+        players: Array.from(this.players.values())
+      }
     });
   }
 
@@ -243,7 +361,7 @@ export class LobbyManager {
       }
       this.onRoomUpdateCallback({
         roomId: this.roomId,
-        hostId: Array.from(this.players.values())[0]?.id,
+        hostId: this.hostId || Array.from(this.players.values())[0]?.id || '',
         players: Array.from(this.players.values()),
         status: 'waiting'
       });
@@ -256,5 +374,17 @@ export class LobbyManager {
 
   onGameStart(cb: (level: LevelConfig) => void) {
     this.onGameStartCallback = cb;
+  }
+
+  onGameAction(cb: (action: any) => void) {
+    this.onGameActionCallback = cb;
+  }
+
+  onHostSync(cb: (payload: any) => void) {
+    this.onHostSyncCallback = cb;
+  }
+
+  onPlayerLeft(cb: (playerId: string) => void) {
+    this.onPlayerLeftCallback = cb;
   }
 }

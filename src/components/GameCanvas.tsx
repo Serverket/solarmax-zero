@@ -16,6 +16,7 @@ interface GameCanvasProps {
   onEditorClick?: (planetId: string | null, x: number, y: number) => void;
   onEditorPointerMove?: (x: number, y: number) => void;
   onEditorPointerUp?: () => void;
+  playerFaction?: FactionId;
 }
 
 export const GameCanvas: React.FC<GameCanvasProps> = ({
@@ -31,6 +32,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   onEditorClick,
   onEditorPointerMove,
   onEditorPointerUp,
+  playerFaction = 'player',
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -217,7 +219,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     setDragCurrent(coords);
 
     if (clickedPlanet) {
-      if (clickedPlanet.owner === 'player') {
+      if (clickedPlanet.owner === playerFaction) {
         sound.playSelect();
         if (e.shiftKey) {
           if (selectedPlanetIds.includes(clickedPlanet.id)) {
@@ -283,7 +285,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       if (isDrag) {
         const selected = planets
           .filter(p => {
-             if (p.owner !== 'player') return false;
+             if (p.owner !== playerFaction) return false;
              const px = Math.max(minX, Math.min(p.x, maxX));
              const py = Math.max(minY, Math.min(p.y, maxY));
              return Math.hypot(p.x - px, p.y - py) <= p.radius;
@@ -307,7 +309,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   };
 
   const handleDoubleClick = () => {
-    const playerPlanetIds = planets.filter(p => p.owner === 'player').map(p => p.id);
+    const playerPlanetIds = planets.filter(p => p.owner === playerFaction).map(p => p.id);
     onSelectPlanets(playerPlanetIds);
     sound.playSelect();
   };

@@ -238,7 +238,7 @@ export const HUD: React.FC<HUDProps> = ({
         {isMultiplayer ? (
           <div className="flex items-center gap-1.5 bg-[#00f0ff]/10 border border-[#00f0ff]/30 px-2 sm:px-3 py-1 rounded-lg shrink-0">
             <span className="w-2 h-2 rounded-full bg-[#00f0ff] animate-pulse" />
-            <span className="font-orbitron text-[#00f0ff] text-[10px] sm:text-xs tracking-widest font-bold">LIVE P2P</span>
+            <span className="font-orbitron text-[#00f0ff] text-[10px] sm:text-xs tracking-widest font-bold">LIVE MULTIPLAYER</span>
           </div>
         ) : (
           <div className="flex items-center gap-0.5 sm:gap-1 bg-white/5 p-1 rounded-lg justify-center flex-nowrap shrink-0">

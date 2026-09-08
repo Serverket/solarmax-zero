@@ -1,124 +1,115 @@
-import { launchFleets } from '../physics';
-import type { PhysicsEngineState } from '../physics';
+import type { FactionId } from '../../types/game';
 import { LobbyManager } from './LobbyManager';
 
 export type SyncAction =
-  | { type: 'launch', sourcePlanetIds: string[], targetPlanetId: string, sendRatio: number, faction: string }
-  | { type: 'sync_state', state: PhysicsEngineState, timestamp: number };
+  | { 
+      type: 'launch'; 
+      sourcePlanetIds: string[]; 
+      targetPlanetId: string; 
+      sendRatio: number; 
+      faction: FactionId;
+      senderId?: string;
+    };
+
+export interface HostPlanetSync {
+  id: string;
+  owner: FactionId;
+  ships: number;
+}
+
+export interface HostSyncData {
+  planets: HostPlanetSync[];
+  timestamp: number;
+}
 
 export class SyncEngine {
   private lobby: LobbyManager;
-  private onStateUpdateCallback?: (state: PhysicsEngineState) => void;
-  private localState?: PhysicsEngineState;
-  
-  // Para el Host: enviar snapshots periódicos
+  private onLaunchCallback?: (action: SyncAction) => void;
+  private onHostSyncCallback?: (data: HostSyncData) => void;
   private syncInterval?: any;
 
   constructor(lobby: LobbyManager) {
     this.lobby = lobby;
 
-    // Escuchar mensajes de todos los clientes WebRTC
-    this.lobby.clients.forEach(client => {
-      client.onMessage((data) => this.handleMessage(data));
+    // Listen to real-time game actions from Supabase Broadcast
+    this.lobby.onGameAction((action: SyncAction) => {
+      this.handleRemoteAction(action);
+    });
+
+    // Listen to authoritative host state sync
+    this.lobby.onHostSync((data: HostSyncData) => {
+      if (this.onHostSyncCallback) {
+        this.onHostSyncCallback(data);
+      }
     });
   }
 
-  public setLocalState(state: PhysicsEngineState) {
-    this.localState = state;
-  }
-
-  // Se llama desde la UI cuando el jugador local lanza una flota
-  public emitLaunch(sourcePlanetIds: string[], targetPlanetId: string, sendRatio: number, faction: string) {
-    const action: SyncAction = { type: 'launch', sourcePlanetIds, targetPlanetId, sendRatio, faction };
+  // Triggered when local player (or local Host AI) launches a fleet
+  public emitLaunch(sourcePlanetIds: string[], targetPlanetId: string, sendRatio: number, faction: FactionId) {
+    const action: SyncAction = { 
+      type: 'launch', 
+      sourcePlanetIds, 
+      targetPlanetId, 
+      sendRatio, 
+      faction,
+      senderId: this.lobby.profile?.id 
+    };
     
-    // Aplicar localmente (si somos el host lo aplicamos, si somos cliente se lo mandamos al host)
-    // En este modelo híbrido, todos simulan la física (determinismo suave), pero el Host manda correcciones.
-    this.applyActionLocally(action);
-    this.broadcast(action);
+    // Apply locally with zero latency
+    if (this.onLaunchCallback) {
+      this.onLaunchCallback(action);
+    }
+    // Broadcast immediately to all other commanders in the room
+    this.lobby.broadcastGameAction(action);
   }
 
-  public startHostSyncLoop() {
+  public startHostSyncLoop(getPlanets: () => HostPlanetSync[]) {
     if (!this.lobby.isHost) return;
-    
-    // Sincronizar estado completo (posiciones, naves, planetas) cada 2 segundos
-    // para corregir cualquier desincronización por lag o no-determinismo de Math.random
+    this.stopHostSyncLoop();
+
+    // Broadcast authoritative planet states every 1.5 seconds
     this.syncInterval = setInterval(() => {
-      if (this.localState) {
-         // Omitimos chispas(sparks) y lasers para ahorrar ancho de banda, 
-         // o los serializamos si es necesario.
-         const snap: PhysicsEngineState = {
-           planets: this.localState.planets,
-           ships: this.localState.ships, // Idealmente comprimido en binario, pero usamos JSON para este prototipo
-           sparks: [], 
-           lasers: this.localState.lasers,
-           stats: this.localState.stats,
-           screenShake: 0
-         };
-         
-         this.broadcast({ type: 'sync_state', state: snap, timestamp: Date.now() });
+      if (this.lobby.isHost) {
+        const planetsData = getPlanets();
+        if (planetsData && planetsData.length > 0) {
+          this.lobby.broadcastHostSync({
+            planets: planetsData,
+            timestamp: Date.now()
+          });
+        }
       }
-    }, 2000);
+    }, 1500);
   }
 
   public stopHostSyncLoop() {
-    if (this.syncInterval) clearInterval(this.syncInterval);
-  }
-
-  private handleMessage(data: ArrayBuffer | string) {
-    try {
-      const action: SyncAction = JSON.parse(data as string);
-      
-      if (action.type === 'launch') {
-         this.applyActionLocally(action);
-         
-         // Si somos Host, retransmitimos a los demás clientes
-         if (this.lobby.isHost) {
-            this.lobby.clients.forEach(c => {
-               // No reenviar al que originó (aunque el ID del sender no lo pasamos aquí, simplificamos enviando a todos)
-               c.send(data);
-            });
-         }
-      } 
-      else if (action.type === 'sync_state' && !this.lobby.isHost) {
-         // Cliente recibe el estado autoritativo del host
-         if (this.localState) {
-            // Suavizado (Interpolación) debería ir aquí. 
-            // Por simplicidad, machacamos el estado:
-            this.localState.planets = action.state.planets;
-            
-            // Reemplazamos las naves, pero mantenemos nuestra extrapolación si es muy diferente
-            this.localState.ships = action.state.ships;
-            
-            if (this.onStateUpdateCallback) {
-               this.onStateUpdateCallback(this.localState);
-            }
-         }
-      }
-    } catch (e) {
-      console.error("Error parsing sync message", e);
+    if (this.syncInterval) {
+      clearInterval(this.syncInterval);
+      this.syncInterval = undefined;
     }
   }
 
-  private applyActionLocally(action: SyncAction) {
-     if (action.type === 'launch' && this.localState) {
-        // Ejecutamos la lógica de lanzamiento.
-        // Importante: asegurar que el `sendRatio` y facción coincidan
-        const newState = launchFleets(action.sourcePlanetIds, action.targetPlanetId, this.localState, action.sendRatio);
-        this.localState = newState;
-        if (this.onStateUpdateCallback) {
-           this.onStateUpdateCallback(newState);
-        }
-     }
+  private handleRemoteAction(action: SyncAction) {
+    if (!action) return;
+
+    // Discard our own launches (already executed locally)
+    if (action.senderId && this.lobby.profile?.id && action.senderId === this.lobby.profile.id) {
+      return;
+    }
+    // Dual check: ignore if the action faction matches our own local faction
+    if (action.faction && action.faction === this.lobby.myFaction) {
+      return;
+    }
+
+    if (action.type === 'launch' && this.onLaunchCallback) {
+      this.onLaunchCallback(action);
+    }
   }
 
-  private broadcast(action: SyncAction) {
-    const payload = JSON.stringify(action);
-    this.lobby.clients.forEach(client => {
-      client.send(payload);
-    });
+  public onLaunch(cb: (action: SyncAction) => void) {
+    this.onLaunchCallback = cb;
   }
 
-  onStateUpdate(cb: (state: PhysicsEngineState) => void) {
-    this.onStateUpdateCallback = cb;
+  public onHostSync(cb: (data: HostSyncData) => void) {
+    this.onHostSyncCallback = cb;
   }
 }

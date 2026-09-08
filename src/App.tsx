@@ -14,6 +14,7 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { MultiplayerLobbyModal } from './components/MultiplayerLobbyModal';
 import { LobbyManager } from './engine/multiplayer/LobbyManager';
 import { SyncEngine } from './engine/multiplayer/SyncEngine';
+import { QuotaManager } from './lib/quota-manager';
 import { updatePhysics, launchFleets, runAIDecisions, type PhysicsEngineState } from './engine/physics';
 import { CAMPAIGN_LEVELS, MOTHERSHIP_LEVELS } from './utils/levels';
 import { sound } from './utils/sound';
@@ -84,11 +85,19 @@ function App() {
   const [editorMapName, setEditorMapName] = useState<string | undefined>(undefined);
 
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const quotaAccumRef = useRef(0);
   const [showAdminDashboard, setShowAdminDashboard] = useState(false);
   
   const [showMultiplayerLobby, setShowMultiplayerLobby] = useState(false);
-  const lobbyManagerRef = useRef<LobbyManager>(new LobbyManager());
-  const syncEngineRef = useRef<SyncEngine>(new SyncEngine(lobbyManagerRef.current));
+  const lobbyManagerRef = useRef<LobbyManager>(null as unknown as LobbyManager);
+  if (!lobbyManagerRef.current) {
+    lobbyManagerRef.current = new LobbyManager();
+  }
+
+  const syncEngineRef = useRef<SyncEngine>(null as unknown as SyncEngine);
+  if (!syncEngineRef.current) {
+    syncEngineRef.current = new SyncEngine(lobbyManagerRef.current);
+  }
 
   useEffect(() => { sound.setVolume(sfxVolume); }, [sfxVolume]);
   useEffect(() => { music.setVolume(musicVolume); }, [musicVolume]);
@@ -107,17 +116,41 @@ function App() {
 
   // Sync multiplayer state
   useEffect(() => {
-    syncEngineRef.current.onStateUpdate((newState) => {
-      setPhysicsState(newState);
-      physicsStateRef.current = newState;
+    // 1. Unified Launch Handler (both local and remote launches execute atomically)
+    syncEngineRef.current!.onLaunch((action) => {
+      setPhysicsState(prev => launchFleets(
+        action.sourcePlanetIds,
+        action.targetPlanetId,
+        prev,
+        action.sendRatio,
+        action.faction
+      ));
+    });
+
+    // 2. Authoritative Host Reconciliation for Guests
+    syncEngineRef.current!.onHostSync((data) => {
+      setPhysicsState(prev => {
+        const nextPlanets = prev.planets.map(p => {
+          const remoteP = data.planets.find(rp => rp.id === p.id);
+          if (remoteP) {
+            const shipsDiff = Math.abs(p.ships - remoteP.ships);
+            return {
+              ...p,
+              owner: remoteP.owner,
+              ships: shipsDiff > 2 ? remoteP.ships : p.ships
+            };
+          }
+          return p;
+        });
+        return { ...prev, planets: nextPlanets };
+      });
     });
 
     // Listen for guest game launch from host
-    lobbyManagerRef.current.onGameStart((level) => {
+    lobbyManagerRef.current!.onGameStart((level) => {
       setCurrentLevel(level);
       const initialSt = initLevel(level);
       setPhysicsState(initialSt);
-      syncEngineRef.current.setLocalState(initialSt);
       setSelectedPlanetIds([]);
       setGameState('multiplayer_playing');
       setShowMultiplayerLobby(false);
@@ -125,6 +158,20 @@ function App() {
       setShowVictory(false);
       setIsPaused(false);
       music.init();
+    });
+
+    // Handle opponent leaving or surrendering during multiplayer
+    lobbyManagerRef.current!.onPlayerLeft((_playerId) => {
+      setGameState(current => {
+        if (current === 'multiplayer_playing') {
+          setVictory(true);
+          setShowVictory(true);
+          sound.playVictory();
+          syncEngineRef.current!.stopHostSyncLoop();
+          return 'victory';
+        }
+        return current;
+      });
     });
   }, []);
 
@@ -155,17 +202,31 @@ function App() {
 
         const isMultiplayer = gameState === 'multiplayer_playing';
 
-        // AI decisions every ~0.8 seconds (only if not in multiplayer, or if host?)
+        if (isMultiplayer) {
+          quotaAccumRef.current += dt;
+          // Optimize I/O: Only commit to localStorage every 10 seconds to avoid micro-stutters in the 60fps loop
+          if (quotaAccumRef.current >= 10.0) {
+            QuotaManager.addPlayedSeconds(lobbyManagerRef.current!.profile, Math.floor(quotaAccumRef.current));
+            quotaAccumRef.current -= Math.floor(quotaAccumRef.current);
+          }
+        }
+
+        // AI decisions every ~0.8 seconds (only Host manages AI in multiplayer, single player is standard)
         aiAccumRef.current += dt * speedMultiplier;
         if (aiAccumRef.current >= 0.8) {
           aiAccumRef.current = 0;
-          if (!isMultiplayer || lobbyManagerRef.current.isHost) {
-            next = runAIDecisions(next, sendPercentage);
+          if (!isMultiplayer) {
+            next = runAIDecisions(next, sendPercentage, ['player']);
+          } else if (lobbyManagerRef.current!.isHost) {
+            const activeHumans = lobbyManagerRef.current!.getActivePlayerFactions();
+            next = runAIDecisions(next, sendPercentage, activeHumans, (sourceIds, targetId, ratio, faction) => {
+              syncEngineRef.current!.emitLaunch(sourceIds, targetId, ratio, faction);
+            });
           }
         }
 
         // Check victory/defeat (Supremacy Rules)
-        const myFaction = isMultiplayer ? lobbyManagerRef.current.myFaction : 'player';
+        const myFaction = isMultiplayer ? lobbyManagerRef.current!.myFaction : 'player';
 
         const myPlanets = next.planets.filter(p => p.owner === myFaction);
         const myShips = next.ships.filter(s => s.faction === myFaction);
@@ -239,8 +300,8 @@ function App() {
 
   const handleLaunchFleets = useCallback((sourceIds: string[], targetId: string) => {
     if (gameState === 'multiplayer_playing') {
-      const myFaction = lobbyManagerRef.current.myFaction;
-      syncEngineRef.current.emitLaunch(sourceIds, targetId, sendPercentage, myFaction);
+      const myFaction = lobbyManagerRef.current!.myFaction;
+      syncEngineRef.current!.emitLaunch(sourceIds, targetId, sendPercentage, myFaction);
     } else {
       setPhysicsState(prev => launchFleets(sourceIds, targetId, prev, sendPercentage));
     }
@@ -290,7 +351,7 @@ function App() {
   };
 
   const handleSelectAllPlayer = () => {
-    const myFaction = gameState === 'multiplayer_playing' ? lobbyManagerRef.current.myFaction : 'player';
+    const myFaction = gameState === 'multiplayer_playing' ? lobbyManagerRef.current!.myFaction : 'player';
     const playerIds = physicsState.planets.filter(p => p.owner === myFaction).map(p => p.id);
     setSelectedPlanetIds(playerIds);
     sound.playSelect();
@@ -333,6 +394,7 @@ function App() {
               selectedPlanetIds={selectedPlanetIds}
               onSelectPlanets={setSelectedPlanetIds}
               onLaunchFleets={handleLaunchFleets}
+              playerFaction={gameState === 'multiplayer_playing' ? lobbyManagerRef.current!.myFaction : 'player'}
             />
           </div>
           <HUD
@@ -359,10 +421,10 @@ function App() {
             }}
             settingsMenu={hudSettingsMenu}
             isMultiplayer={gameState === 'multiplayer_playing'}
-            playerFaction={lobbyManagerRef.current.myFaction}
+            playerFaction={lobbyManagerRef.current!.myFaction}
             onLeaveMultiplayer={async () => {
-              await lobbyManagerRef.current.leaveRoom();
-              syncEngineRef.current.stopHostSyncLoop();
+              await lobbyManagerRef.current!.leaveRoom();
+              syncEngineRef.current!.stopHostSyncLoop();
               setGameState('menu');
               setShowLevelSelect(true);
             }}
@@ -475,22 +537,25 @@ function App() {
       <MultiplayerLobbyModal
         isOpen={showMultiplayerLobby}
         onClose={async () => {
-          await lobbyManagerRef.current.leaveRoom();
+          await lobbyManagerRef.current!.leaveRoom();
           setShowMultiplayerLobby(false);
           setShowLevelSelect(true);
         }}
-        lobbyManager={lobbyManagerRef.current}
+        onRequireAuth={() => {
+          setShowMultiplayerLobby(false);
+          setShowAuthModal(true);
+        }}
+        lobbyManager={lobbyManagerRef.current!}
         onStartGame={() => {
-          const playerCount = Math.max(2, lobbyManagerRef.current.players.size);
+          const playerCount = Math.max(2, lobbyManagerRef.current!.players.size);
           const arenaLevel = generateRandomLevel(playerCount, 10);
-          arenaLevel.name = `Arena Sector ${lobbyManagerRef.current.roomId || ''}`;
+          arenaLevel.name = `Arena Sector ${lobbyManagerRef.current!.roomId || ''}`;
           
-          lobbyManagerRef.current.startGame(arenaLevel);
+          lobbyManagerRef.current!.startGame(arenaLevel);
           
           setCurrentLevel(arenaLevel);
           const initialSt = initLevel(arenaLevel);
           setPhysicsState(initialSt);
-          syncEngineRef.current.setLocalState(initialSt);
           setSelectedPlanetIds([]);
           
           setGameState('multiplayer_playing');
@@ -500,8 +565,14 @@ function App() {
           setIsPaused(false);
           music.init();
           
-          if (lobbyManagerRef.current.isHost) {
-            syncEngineRef.current.startHostSyncLoop();
+          if (lobbyManagerRef.current!.isHost) {
+            syncEngineRef.current!.startHostSyncLoop(() => {
+              return physicsStateRef.current.planets.map(p => ({
+                id: p.id,
+                owner: p.owner,
+                ships: Math.floor(p.ships)
+              }));
+            });
           }
         }}
       />
@@ -515,8 +586,8 @@ function App() {
           onLevelSelect={async () => { 
             setShowVictory(false); 
             if (gameState === 'multiplayer_playing') {
-              await lobbyManagerRef.current.leaveRoom();
-              syncEngineRef.current.stopHostSyncLoop();
+              await lobbyManagerRef.current!.leaveRoom();
+              syncEngineRef.current!.stopHostSyncLoop();
               setGameState('menu');
             }
             setShowLevelSelect(true); 
