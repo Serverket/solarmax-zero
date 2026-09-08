@@ -16,8 +16,8 @@ export function LegalPages({ type }: LegalPagesProps) {
   return (
     <div className="fixed inset-0 z-[100] flex flex-col items-center justify-start bg-[#050510] text-white p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-8 overflow-y-auto font-rajdhani">
       {/* Background aesthetics */}
-      <div className="absolute inset-0 bg-[url('/bg.png')] opacity-10 bg-cover bg-center pointer-events-none" />
-      <div className="absolute inset-0 bg-gradient-to-b from-[#00f0ff]/10 via-transparent to-[#00f0ff]/5 pointer-events-none" />
+      <div className="fixed inset-0 bg-[url('/bg.png')] opacity-10 bg-cover bg-center pointer-events-none" />
+      <div className="fixed inset-0 bg-gradient-to-b from-[#00f0ff]/10 via-transparent to-[#00f0ff]/5 pointer-events-none" />
       
       <div className="relative w-full max-w-3xl glass-panel p-6 sm:p-10 rounded-2xl border border-[#00f0ff]/30 shadow-[0_0_50px_rgba(0,240,255,0.1)] mt-2 sm:mt-8 mb-6 sm:mb-12 shrink-0">
         <button 
