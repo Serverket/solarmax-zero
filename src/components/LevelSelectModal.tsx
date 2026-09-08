@@ -436,14 +436,18 @@ export const LevelSelectModal: React.FC<LevelSelectModalProps> = ({
           </div>
         </div>
         
-        {/* Desktop Footer (Hidden on Mobile) */}
-        <div className="hidden [@media(min-width:768px)_and_(min-height:550px)]:block shrink-0 mt-4 mb-auto pb-4">
-          <div className="text-center text-white/50 text-[9px] font-orbitron tracking-widest uppercase px-4 leading-tight">
+        {/* Footer (Responsive) */}
+        <div className="shrink-0 mt-2 sm:mt-4 mb-2 sm:mb-auto pb-2 sm:pb-4">
+          <div className="hidden sm:block text-center text-white/50 text-[9px] font-orbitron tracking-widest uppercase px-4 leading-tight mb-2">
             This is a free, open-source homage to classic RTS mechanics.<br/>
             Not affiliated with or endorsed by any original rights holders.
           </div>
-          <div className="mt-2 text-center text-white/30 text-[10px] font-orbitron tracking-widest uppercase pointer-events-auto">
-            Made with 🗿 by <a href="https://serverket.dev" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">Serverket</a>
+          <div className="flex justify-center items-center gap-3 sm:gap-4 text-center text-white/40 text-[8px] sm:text-[10px] font-orbitron tracking-widest uppercase pointer-events-auto">
+            <span>Made with 🗿 by <a href="https://serverket.dev" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">Serverket</a></span>
+            <span className="opacity-30">|</span>
+            <button onClick={() => window.location.href = '/privacy'} className="hover:text-[#00f0ff] transition-colors uppercase tracking-widest cursor-pointer text-left">Privacy</button>
+            <span className="opacity-30">|</span>
+            <button onClick={() => window.location.href = '/tos'} className="hover:text-[#00f0ff] transition-colors uppercase tracking-widest cursor-pointer text-left">TOS</button>
           </div>
         </div>
       </div>

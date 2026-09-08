@@ -74,8 +74,8 @@ xychart-beta
     title "Frame Latency (ms) / 10s Window"
     x-axis [1s, 2s, 3s, 4s, 5s, 6s, 7s, 8s, 9s, 10s]
     y-axis "Latency (ms)" 0 --> 25
-    line "Anterior (Commit cada 1s)" [19, 18, 19, 18, 19, 18, 19, 18, 19, 18]
-    bar "Actual (Commit cada 10s)" [4, 4, 4, 4, 4, 4, 4, 4, 4, 18]
+    line "Previous (Commit every 1s)" [19, 18, 19, 18, 19, 18, 19, 18, 19, 18]
+    bar "Current (Commit every 10s)" [4, 4, 4, 4, 4, 4, 4, 4, 4, 18]
 ```
 
 ## 🚀 Build and Run

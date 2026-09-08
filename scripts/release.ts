@@ -9,7 +9,7 @@ const noteIndex = args.indexOf('--note');
 const note = noteIndex !== -1 ? args[noteIndex + 1] : '';
 
 if (!version) {
-  console.error('❌ Error: Debes proveer una versión (ej. 1.7.0).');
+  console.error('❌ Error: You must provide a version (e.g., 1.7.0).');
   process.exit(1);
 }
 
@@ -19,7 +19,7 @@ try {
   const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
   pkg.version = version;
   writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n');
-  console.log(`✅ package.json actualizado a la versión ${version}`);
+  console.log(`✅ package.json updated to version ${version}`);
 
   // 2. Commit and Tag
   const commitMsg = note ? `Release v${version} - ${note}` : `Release v${version}`;
@@ -30,12 +30,12 @@ try {
   execSync(`git tag v${version}`, { stdio: 'inherit' });
   
   // 3. Push to remote repository (Triggers Vercel Deploy)
-  console.log('☁️ Push a GitHub para desplegar en Vercel...');
+  console.log('☁️ Pushing to GitHub to trigger Vercel deployment...');
   execSync('git push origin HEAD', { stdio: 'inherit' });
   execSync('git push origin --tags', { stdio: 'inherit' });
   
-  console.log(`🚀 Release v${version} creado con éxito.`);
+  console.log(`🚀 Release v${version} created successfully.`);
 } catch (error) {
-  console.error('❌ Falló el release:', error);
+  console.error('❌ Release failed:', error);
   process.exit(1);
 }
