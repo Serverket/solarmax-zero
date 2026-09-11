@@ -78,6 +78,7 @@ function App() {
   const [showLevelSelect, setShowLevelSelect] = useState(true);
   const [showVictory, setShowVictory] = useState(false);
   const [victory, setVictory] = useState(false);
+  const [multiplayerRanking, setMultiplayerRanking] = useState<{ faction: string, name: string, score: number, isDead?: boolean }[]>([]);
   const [sfxVolume, setSfxVolume] = useState(0.8);
   const [musicVolume, setMusicVolume] = useState(0.3);
   
@@ -146,6 +147,15 @@ function App() {
       });
     });
 
+    syncEngineRef.current!.onHostDisconnected(async () => {
+      // Host dropped without sending player_left
+      syncEngineRef.current!.stopGuestWatchdog();
+      alert("HOST DISCONNECTED: The match has been aborted.");
+      await lobbyManagerRef.current!.leaveRoom();
+      setGameState('menu');
+      setShowMultiplayerLobby(true);
+    });
+
     // Listen for guest game launch from host
     lobbyManagerRef.current!.onGameStart((level) => {
       setCurrentLevel(level);
@@ -157,18 +167,43 @@ function App() {
       setShowLevelSelect(false);
       setShowVictory(false);
       setIsPaused(false);
+      hasDiedRef.current = false;
       music.init();
+      
+      syncEngineRef.current!.startGuestWatchdog();
     });
 
     // Handle opponent leaving or surrendering during multiplayer
-    lobbyManagerRef.current!.onPlayerLeft((_playerId) => {
+    lobbyManagerRef.current!.onPlayerLeft((playerId) => {
+      // Find the assigned faction of the player who left and neutralize their planets
+      const leftFaction = lobbyManagerRef.current!.getPlayerFaction(playerId);
+      if (leftFaction) {
+        setPhysicsState(prev => ({
+          ...prev,
+          planets: prev.planets.map(p => p.owner === leftFaction ? { ...p, owner: 'neutral', ships: 0 } : p),
+          ships: prev.ships.filter(s => s.faction !== leftFaction)
+        }));
+      }
+
       setGameState(current => {
         if (current === 'multiplayer_playing') {
-          setVictory(true);
-          setShowVictory(true);
-          sound.playVictory();
-          syncEngineRef.current!.stopHostSyncLoop();
-          return 'victory';
+          const activeFactions = lobbyManagerRef.current!.getActivePlayerFactions();
+          if (activeFactions.length <= 1) {
+            setVictory(true);
+            setShowVictory(true);
+            sound.playVictory();
+            syncEngineRef.current!.stopHostSyncLoop();
+            syncEngineRef.current!.stopGuestWatchdog();
+            
+            // We won by default (everyone else left)
+            const myFaction = lobbyManagerRef.current!.myFaction;
+            const myProfile = lobbyManagerRef.current!.profile;
+            setMultiplayerRanking([
+              { faction: myFaction, name: myProfile?.name || 'Unknown', score: 9999 }
+            ]);
+            
+            return 'victory';
+          }
         }
         return current;
       });
@@ -177,6 +212,7 @@ function App() {
 
   const lastTimeRef = useRef<number>(0);
   const aiAccumRef = useRef<number>(0);
+  const hasDiedRef = useRef<boolean>(false);
 
   // Main game loop
   useEffect(() => {
@@ -204,14 +240,12 @@ function App() {
 
         if (isMultiplayer) {
           quotaAccumRef.current += dt;
-          // Optimize I/O: Only commit to localStorage every 10 seconds to avoid micro-stutters in the 60fps loop
           if (quotaAccumRef.current >= 10.0) {
             QuotaManager.addPlayedSeconds(lobbyManagerRef.current!.profile, Math.floor(quotaAccumRef.current));
             quotaAccumRef.current -= Math.floor(quotaAccumRef.current);
           }
         }
 
-        // AI decisions every ~0.8 seconds (only Host manages AI in multiplayer, single player is standard)
         aiAccumRef.current += dt * speedMultiplier;
         if (aiAccumRef.current >= 0.8) {
           aiAccumRef.current = 0;
@@ -225,43 +259,102 @@ function App() {
           }
         }
 
-        // Check victory/defeat (Supremacy Rules)
-        const myFaction = isMultiplayer ? lobbyManagerRef.current!.myFaction : 'player';
+        // Check victory/defeat
+        if (!isMultiplayer) {
+          // Single player logic
+          const myPlanets = next.planets.filter(p => p.owner === 'player');
+          const myShips = next.ships.filter(s => s.faction === 'player');
+          const isMeAlive = myPlanets.length > 0 || myShips.length > 0;
 
-        const myPlanets = next.planets.filter(p => p.owner === myFaction);
-        const myShips = next.ships.filter(s => s.faction === myFaction);
-        const isMeAlive = myPlanets.length > 0 || myShips.length > 0;
+          const enemyPlanets = next.planets.filter(p => p.owner !== 'player' && p.owner !== 'neutral');
+          const enemyShips = next.ships.filter(s => s.faction !== 'player' && s.faction !== 'neutral');
+          const areEnemiesAlive = enemyPlanets.length > 0 || enemyShips.length > 0;
 
-        const enemyPlanets = next.planets.filter(p => p.owner !== myFaction && p.owner !== 'neutral');
-        const enemyShips = next.ships.filter(s => s.faction !== myFaction && s.faction !== 'neutral');
-        const areEnemiesAlive = enemyPlanets.length > 0 || enemyShips.length > 0;
-
-        if (!isMeAlive) {
-          setVictory(false);
-          setShowVictory(true);
-          setGameState('defeat');
-          sound.playDefeat();
-        } else if (!areEnemiesAlive) {
-          if (currentLevel.id === 'lvl36' && !isMultiplayer) {
-            // Trigger the cinematic shockwave sequence once for lvl36
-            setGameState('cinematic');
-            sound.playVictory();
-            if (!getMothershipUnlocked()) unlockMothership();
-          } else {
-            setVictory(true);
+          if (!isMeAlive) {
+            setVictory(false);
             setShowVictory(true);
-            setGameState('victory');
-            sound.playVictory();
-            
-            // Save progression if campaign level
-            if (!isMultiplayer) {
+            setGameState('defeat');
+            sound.playDefeat();
+          } else if (!areEnemiesAlive) {
+            if (currentLevel.id === 'lvl36') {
+              setGameState('cinematic');
+              sound.playVictory();
+              if (!getMothershipUnlocked()) unlockMothership();
+            } else {
+              setVictory(true);
+              setShowVictory(true);
+              setGameState('victory');
+              sound.playVictory();
               const currentIdx = CAMPAIGN_LEVELS.findIndex(l => l.id === currentLevel.id);
-              if (currentIdx >= 0) {
-                setUnlockedLevel(currentIdx + 2); // unlock next level (1-indexed)
-              }
+              if (currentIdx >= 0) setUnlockedLevel(currentIdx + 2);
+            }
+          }
+        } else {
+          // Multiplayer logic
+          const myFaction = lobbyManagerRef.current!.myFaction;
+          const myPlanets = next.planets.filter(p => p.owner === myFaction);
+          const myShips = next.ships.filter(s => s.faction === myFaction);
+          const isMeAlive = myPlanets.length > 0 || myShips.length > 0;
+
+          const activeFactions = lobbyManagerRef.current!.getActivePlayerFactions();
+          
+          // Check if any other active player is still alive
+          let anyOtherAlive = false;
+          const scores: { faction: string, score: number }[] = [];
+          
+          for (const f of activeFactions) {
+            const fPlanets = next.planets.filter(p => p.owner === f);
+            const fShips = next.ships.filter(s => s.faction === f);
+            const isAlive = fPlanets.length > 0 || fShips.length > 0;
+            
+            // Calculate a score for ranking based on planets and ships
+            scores.push({ faction: f, score: fPlanets.length * 1000 + fShips.length });
+            
+            if (f !== myFaction && isAlive) {
+              anyOtherAlive = true;
+            }
+          }
+
+          if (!isMeAlive && anyOtherAlive) {
+            // I died, but game is still going for others.
+            if (!hasDiedRef.current) {
+              hasDiedRef.current = true;
+              setVictory(false);
+              setShowVictory(true);
+              sound.playDefeat();
+              
+              // Generate ranking
+              const ranking = activeFactions.map(f => {
+                 const p = Array.from(lobbyManagerRef.current!.players.values()).find(player => lobbyManagerRef.current!.getPlayerFaction(player.id) === f);
+                 const sc = scores.find(s => s.faction === f)?.score || 0;
+                 return { faction: f, name: p?.name || 'Unknown', score: sc, isDead: sc === 0 };
+              }).sort((a, b) => b.score - a.score);
+              setMultiplayerRanking(ranking);
+            }
+          } else if (!anyOtherAlive) {
+            // All enemies are dead
+            if (!hasDiedRef.current) {
+              hasDiedRef.current = true;
+              setVictory(true);
+              setShowVictory(true);
+              // Do NOT change gameState to defeat or victory so loop keeps running for guests if we are host, 
+              // Wait, if everyone else is dead, the game is over! We can stop the loop.
+              setGameState('victory');
+              sound.playVictory();
+              syncEngineRef.current!.stopHostSyncLoop();
+              syncEngineRef.current!.stopGuestWatchdog();
+              
+              // Generate ranking
+              const ranking = activeFactions.map(f => {
+                 const p = Array.from(lobbyManagerRef.current!.players.values()).find(player => lobbyManagerRef.current!.getPlayerFaction(player.id) === f);
+                 const sc = scores.find(s => s.faction === f)?.score || 0;
+                 return { faction: f, name: p?.name || 'Unknown', score: sc, isDead: sc === 0 };
+              }).sort((a, b) => b.score - a.score);
+              setMultiplayerRanking(ranking);
             }
           }
         }
+
 
         return next;
       });
@@ -581,18 +674,28 @@ function App() {
         <VictoryModal
           isVictory={victory}
           stats={physicsState.stats}
+          ranking={multiplayerRanking}
           onNextLevel={handleNextLevel}
           onRestart={handleRestart}
-          onLevelSelect={async () => { 
+          onLevelSelect={() => { 
             setShowVictory(false); 
-            if (gameState === 'multiplayer_playing') {
-              await lobbyManagerRef.current!.leaveRoom();
+            if (gameState === 'multiplayer_playing' || gameState === 'victory' || gameState === 'defeat') {
               syncEngineRef.current!.stopHostSyncLoop();
+              syncEngineRef.current!.stopGuestWatchdog();
+              // Only reset to menu if we are in multiplayer context
+              if (lobbyManagerRef.current!.roomId) {
+                 setGameState('menu');
+                 setShowMultiplayerLobby(true);
+              } else {
+                 setGameState('menu');
+                 setShowLevelSelect(true);
+              }
+            } else {
               setGameState('menu');
+              setShowLevelSelect(true); 
             }
-            setShowLevelSelect(true); 
           }}
-          isMultiplayer={gameState === 'multiplayer_playing'}
+          isMultiplayer={!!lobbyManagerRef.current!.roomId}
         />
       )}
 

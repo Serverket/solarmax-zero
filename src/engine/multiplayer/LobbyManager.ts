@@ -20,6 +20,7 @@ export class LobbyManager {
   
   public isHost: boolean = false;
   public players: Map<string, PlayerProfile> = new Map();
+  public assignedFactions: Map<string, FactionId> = new Map();
   public hostId?: string;
 
   private onRoomUpdateCallback?: (state: RoomState | null) => void;
@@ -35,6 +36,8 @@ export class LobbyManager {
   }
 
   public get myFaction(): FactionId {
+    const assigned = this.assignedFactions.get(this.profile?.id || '');
+    if (assigned) return assigned;
     const playerArray = Array.from(this.players.values());
     const myIndex = playerArray.findIndex(p => p.id === this.profile?.id);
     if (myIndex >= 0 && myIndex < FACTION_SLOTS.length) {
@@ -44,6 +47,8 @@ export class LobbyManager {
   }
 
   public getPlayerFaction(playerId: string): FactionId {
+    const assigned = this.assignedFactions.get(playerId);
+    if (assigned) return assigned;
     const playerArray = Array.from(this.players.values());
     const idx = playerArray.findIndex(p => p.id === playerId);
     if (idx >= 0 && idx < FACTION_SLOTS.length) {
@@ -55,8 +60,8 @@ export class LobbyManager {
   public getActivePlayerFactions(): FactionId[] {
     const factions: FactionId[] = [];
     const playerArray = Array.from(this.players.values());
-    playerArray.forEach((_, idx) => {
-       factions.push(FACTION_SLOTS[idx] || 'player');
+    playerArray.forEach((p) => {
+       factions.push(this.assignedFactions.get(p.id) || 'player');
     });
     return factions;
   }
@@ -138,10 +143,16 @@ export class LobbyManager {
   public startGame(level: LevelConfig) {
     if (!this.isHost || !this.channel) return;
     
+    const playerArray = Array.from(this.players.values());
+    playerArray.forEach((p, idx) => {
+      this.assignedFactions.set(p.id, FACTION_SLOTS[idx] || 'player');
+    });
+    
     const payload = {
       level,
       hostId: this.profile!.id,
-      players: Array.from(this.players.values())
+      players: playerArray,
+      factions: Object.fromEntries(this.assignedFactions)
     };
 
     this.channel.send({
@@ -270,11 +281,16 @@ export class LobbyManager {
       const level = data?.level as LevelConfig;
       const remotePlayers = data?.players as PlayerProfile[];
       const remoteHostId = data?.hostId as string;
+      const factionsMap = data?.factions;
 
       if (remotePlayers && Array.isArray(remotePlayers)) {
         this.players.clear();
         remotePlayers.forEach(p => this.players.set(p.id, p));
         this.hostId = remoteHostId;
+      }
+      
+      if (factionsMap) {
+        this.assignedFactions = new Map(Object.entries(factionsMap)) as Map<string, FactionId>;
       }
 
       if (this.onGameStartCallback && level) {

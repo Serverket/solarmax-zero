@@ -27,6 +27,9 @@ export class SyncEngine {
   private onLaunchCallback?: (action: SyncAction) => void;
   private onHostSyncCallback?: (data: HostSyncData) => void;
   private syncInterval?: any;
+  private watchdogInterval?: any;
+  private lastSyncTime: number = 0;
+  private onHostDisconnectedCallback?: () => void;
 
   constructor(lobby: LobbyManager) {
     this.lobby = lobby;
@@ -38,10 +41,15 @@ export class SyncEngine {
 
     // Listen to authoritative host state sync
     this.lobby.onHostSync((data: HostSyncData) => {
+      this.lastSyncTime = Date.now();
       if (this.onHostSyncCallback) {
         this.onHostSyncCallback(data);
       }
     });
+  }
+
+  public onHostDisconnected(cb: () => void) {
+    this.onHostDisconnectedCallback = cb;
   }
 
   // Triggered when local player (or local Host AI) launches a fleet
@@ -61,6 +69,29 @@ export class SyncEngine {
     }
     // Broadcast immediately to all other commanders in the room
     this.lobby.broadcastGameAction(action);
+  }
+
+  public startGuestWatchdog() {
+    if (this.lobby.isHost) return;
+    this.stopGuestWatchdog();
+    
+    this.lastSyncTime = Date.now();
+    this.watchdogInterval = setInterval(() => {
+      if (Date.now() - this.lastSyncTime > 5000) {
+        // Host timed out
+        this.stopGuestWatchdog();
+        if (this.onHostDisconnectedCallback) {
+          this.onHostDisconnectedCallback();
+        }
+      }
+    }, 1000);
+  }
+
+  public stopGuestWatchdog() {
+    if (this.watchdogInterval) {
+      clearInterval(this.watchdogInterval);
+      this.watchdogInterval = undefined;
+    }
   }
 
   public startHostSyncLoop(getPlanets: () => HostPlanetSync[]) {

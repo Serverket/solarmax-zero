@@ -10,6 +10,7 @@ interface VictoryModalProps {
   onRestart: () => void;
   onLevelSelect: () => void;
   isMultiplayer?: boolean;
+  ranking?: { faction: string; name: string; score: number; isDead?: boolean }[];
 }
 
 export const VictoryModal: React.FC<VictoryModalProps> = ({
@@ -19,6 +20,7 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
   onRestart,
   onLevelSelect,
   isMultiplayer,
+  ranking,
 }) => {
   useEffect(() => {
     if (isVictory) {
@@ -51,24 +53,42 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
             : (isVictory ? 'All enemy planets have been assimilated.' : 'Your fleet has been eradicated.')}
         </p>
 
-        <div className="w-full flex flex-row sm:grid sm:grid-cols-2 [@media(max-height:500px)]:flex [@media(max-height:500px)]:flex-row gap-1 sm:gap-3 [@media(max-height:500px)]:gap-1 mb-2 sm:mb-8 [@media(max-height:500px)]:mb-2 text-xs font-orbitron flex-1 min-h-0 overflow-hidden">
-          <div className="flex-1 bg-white/5 rounded-md sm:rounded-lg p-1.5 sm:p-4 [@media(max-height:500px)]:p-1 flex flex-col justify-center">
-            <div className="text-white/40 text-[8px] sm:text-[10px] [@media(max-height:500px)]:text-[7px] tracking-widest uppercase truncate">SHIPS BUILT</div>
-            <div className="text-xs sm:text-xl [@media(max-height:500px)]:text-xs font-bold text-white sm:mt-1 glow-white">{stats.shipsProduced}</div>
+        {isMultiplayer && ranking && ranking.length > 0 ? (
+          <div className="w-full flex flex-col gap-1 sm:gap-2 mb-2 sm:mb-8 [@media(max-height:500px)]:mb-2 text-xs font-orbitron flex-1 min-h-0 overflow-y-auto pr-1">
+            <div className="text-white/40 text-[10px] sm:text-xs font-bold tracking-widest uppercase mb-1 sm:mb-2 text-left px-2">POST-MATCH RANKING</div>
+            {ranking.map((r, idx) => (
+              <div key={idx} className={`flex items-center justify-between p-2 sm:p-3 rounded-lg border ${r.isDead ? 'bg-red-500/10 border-red-500/20 text-white/50' : idx === 0 ? 'bg-[#00f0ff]/10 border-[#00f0ff]/30 text-white' : 'bg-white/5 border-white/10 text-white/80'}`}>
+                <div className="flex items-center gap-2 sm:gap-4 truncate">
+                  <div className={`font-black text-sm sm:text-lg ${idx === 0 && !r.isDead ? 'text-[#00f0ff]' : 'text-white/30'} w-6 sm:w-8`}>#{idx + 1}</div>
+                  <div className="flex flex-col items-start truncate">
+                    <span className="font-bold truncate max-w-[120px] sm:max-w-[200px]">{r.name}</span>
+                    <span className="text-[8px] sm:text-[10px] opacity-60 tracking-widest uppercase">{r.isDead ? 'ANNIHILATED' : 'SURVIVED'}</span>
+                  </div>
+                </div>
+                <div className="font-black text-xs sm:text-sm glow-white">{r.score.toLocaleString()} PTS</div>
+              </div>
+            ))}
           </div>
-          <div className="flex-1 bg-white/5 rounded-md sm:rounded-lg p-1.5 sm:p-4 [@media(max-height:500px)]:p-1 flex flex-col justify-center">
-            <div className="text-white/40 text-[8px] sm:text-[10px] [@media(max-height:500px)]:text-[7px] tracking-widest uppercase truncate">DESTROYED</div>
-            <div className="text-xs sm:text-xl [@media(max-height:500px)]:text-xs font-bold text-gray-300 sm:mt-1 glow-gray">{stats.shipsDestroyed}</div>
+        ) : (
+          <div className="w-full flex flex-row sm:grid sm:grid-cols-2 [@media(max-height:500px)]:flex [@media(max-height:500px)]:flex-row gap-1 sm:gap-3 [@media(max-height:500px)]:gap-1 mb-2 sm:mb-8 [@media(max-height:500px)]:mb-2 text-xs font-orbitron flex-1 min-h-0 overflow-hidden">
+            <div className="flex-1 bg-white/5 rounded-md sm:rounded-lg p-1.5 sm:p-4 [@media(max-height:500px)]:p-1 flex flex-col justify-center">
+              <div className="text-white/40 text-[8px] sm:text-[10px] [@media(max-height:500px)]:text-[7px] tracking-widest uppercase truncate">SHIPS BUILT</div>
+              <div className="text-xs sm:text-xl [@media(max-height:500px)]:text-xs font-bold text-white sm:mt-1 glow-white">{stats.shipsProduced}</div>
+            </div>
+            <div className="flex-1 bg-white/5 rounded-md sm:rounded-lg p-1.5 sm:p-4 [@media(max-height:500px)]:p-1 flex flex-col justify-center">
+              <div className="text-white/40 text-[8px] sm:text-[10px] [@media(max-height:500px)]:text-[7px] tracking-widest uppercase truncate">DESTROYED</div>
+              <div className="text-xs sm:text-xl [@media(max-height:500px)]:text-xs font-bold text-gray-300 sm:mt-1 glow-gray">{stats.shipsDestroyed}</div>
+            </div>
+            <div className="flex-1 bg-white/5 rounded-md sm:rounded-lg p-1.5 sm:p-4 [@media(max-height:500px)]:p-1 flex flex-col justify-center">
+              <div className="text-white/40 text-[8px] sm:text-[10px] [@media(max-height:500px)]:text-[7px] tracking-widest uppercase truncate">CAPTURED</div>
+              <div className="text-xs sm:text-xl [@media(max-height:500px)]:text-xs font-bold text-white sm:mt-1">{stats.planetsCaptured}</div>
+            </div>
+            <div className="flex-1 bg-white/5 rounded-md sm:rounded-lg p-1.5 sm:p-4 [@media(max-height:500px)]:p-1 flex flex-col justify-center">
+              <div className="text-white/40 text-[8px] sm:text-[10px] [@media(max-height:500px)]:text-[7px] tracking-widest uppercase truncate">COMBAT TIME</div>
+              <div className="text-xs sm:text-xl [@media(max-height:500px)]:text-xs font-bold text-white sm:mt-1 glow-white">{durationSec}s</div>
+            </div>
           </div>
-          <div className="flex-1 bg-white/5 rounded-md sm:rounded-lg p-1.5 sm:p-4 [@media(max-height:500px)]:p-1 flex flex-col justify-center">
-            <div className="text-white/40 text-[8px] sm:text-[10px] [@media(max-height:500px)]:text-[7px] tracking-widest uppercase truncate">CAPTURED</div>
-            <div className="text-xs sm:text-xl [@media(max-height:500px)]:text-xs font-bold text-white sm:mt-1">{stats.planetsCaptured}</div>
-          </div>
-          <div className="flex-1 bg-white/5 rounded-md sm:rounded-lg p-1.5 sm:p-4 [@media(max-height:500px)]:p-1 flex flex-col justify-center">
-            <div className="text-white/40 text-[8px] sm:text-[10px] [@media(max-height:500px)]:text-[7px] tracking-widest uppercase truncate">COMBAT TIME</div>
-            <div className="text-xs sm:text-xl [@media(max-height:500px)]:text-xs font-bold text-white sm:mt-1 glow-white">{durationSec}s</div>
-          </div>
-        </div>
+        )}
 
         <div className="w-full flex flex-row sm:flex-col [@media(max-height:500px)]:flex-row gap-1 sm:gap-3 [@media(max-height:500px)]:gap-1 text-[10px] sm:text-sm [@media(max-height:500px)]:text-[9px] font-bold uppercase tracking-widest shrink-0 min-h-0">
           {isMultiplayer ? (
@@ -77,7 +97,7 @@ export const VictoryModal: React.FC<VictoryModalProps> = ({
               className="w-full py-2.5 sm:py-4 [@media(max-height:500px)]:py-2 rounded-lg bg-[#00f0ff] hover:bg-white text-black font-orbitron font-bold tracking-widest transition-all flex items-center justify-center gap-2 cursor-pointer shadow-[0_0_20px_rgba(0,240,255,0.4)]"
             >
               <Grid className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span>EXIT TO COMMAND CENTER</span>
+              <span>RETURN TO LOBBY</span>
             </button>
           ) : (
             <>
