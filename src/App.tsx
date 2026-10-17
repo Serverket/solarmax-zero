@@ -11,6 +11,7 @@ import { SettingsMenu } from './components/SettingsMenu';
 import { CinematicOverlay } from './components/CinematicOverlay';
 import { AuthModal } from './components/AuthModal';
 import { AdminDashboard } from './components/AdminDashboard';
+import { LegalPages } from './components/LegalPages';
 import { MultiplayerLobbyModal } from './components/MultiplayerLobbyModal';
 import { LobbyManager } from './engine/multiplayer/LobbyManager';
 import { SyncEngine } from './engine/multiplayer/SyncEngine';
@@ -51,23 +52,30 @@ function initLevel(level: LevelConfig): PhysicsEngineState {
 }
 
 function App() {
-  const [gameState, setGameState] = useState<GameState>('menu');
-  
-  // Find the last played level or default to the first level
+  // Check URL params for deep linking / testing / promo captures
+  const urlParams = useMemo(() => {
+    return typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  }, []);
+  const paramLevelId = urlParams?.get('level');
+  const isAutoStart = urlParams?.get('autostart') === 'true';
+  const isHideHud = urlParams?.get('hidehud') === 'true';
+
+  // Find the requested level, last played level, or default to the first level
   const initialLevel = useMemo(() => {
-    const lastId = getLastPlayedLevel();
-    if (lastId) {
-      if (lastId.startsWith('m_lvl')) {
-        const mLevel = MOTHERSHIP_LEVELS.find(l => l.id === lastId);
+    const levelId = paramLevelId || getLastPlayedLevel();
+    if (levelId) {
+      if (levelId.startsWith('m_lvl')) {
+        const mLevel = MOTHERSHIP_LEVELS.find(l => l.id === levelId);
         if (mLevel) return mLevel;
       } else {
-        const cLevel = CAMPAIGN_LEVELS.find(l => l.id === lastId);
+        const cLevel = CAMPAIGN_LEVELS.find(l => l.id === levelId);
         if (cLevel) return cLevel;
       }
     }
     return CAMPAIGN_LEVELS[0];
-  }, []);
+  }, [paramLevelId]);
 
+  const [gameState, setGameState] = useState<GameState>(isAutoStart ? 'playing' : 'menu');
   const [currentLevel, setCurrentLevel] = useState<LevelConfig>(initialLevel);
   const [physicsState, setPhysicsState] = useState<PhysicsEngineState>(() => initLevel(initialLevel));
   const [selectedPlanetIds, setSelectedPlanetIds] = useState<string[]>([]);
@@ -75,7 +83,7 @@ function App() {
   const [speedMultiplier, setSpeedMultiplier] = useState(1);
   const [isPaused, setIsPaused] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
-  const [showLevelSelect, setShowLevelSelect] = useState(true);
+  const [showLevelSelect, setShowLevelSelect] = useState(!isAutoStart);
   const [showVictory, setShowVictory] = useState(false);
   const [victory, setVictory] = useState(false);
   const [multiplayerRanking, setMultiplayerRanking] = useState<{ faction: string, name: string, score: number, isDead?: boolean }[]>([]);
@@ -90,6 +98,68 @@ function App() {
   const [showAdminDashboard, setShowAdminDashboard] = useState(false);
   
   const [showMultiplayerLobby, setShowMultiplayerLobby] = useState(false);
+
+  // SPA Routing for Privacy Policy and Terms of Service (zero reload, continuous audio)
+  const [activeLegalPage, setActiveLegalPage] = useState<'privacy' | 'tos' | null>(() => {
+    if (typeof window !== 'undefined') {
+      const p = window.location.pathname;
+      const h = window.location.hash;
+      if (p === '/privacy' || p === '/imprintprivacypolicy' || h === '#privacy') return 'privacy';
+      if (p === '/tos' || h === '#tos') return 'tos';
+    }
+    return null;
+  });
+
+  const handleOpenLegal = useCallback((type: 'privacy' | 'tos') => {
+    sound.playSelect();
+    setActiveLegalPage(type);
+    if (typeof window !== 'undefined') {
+      const isIframe = window.self !== window.top;
+      try {
+        if (isIframe) {
+          window.history.pushState({ legal: type }, '', `#${type}`);
+        } else {
+          window.history.pushState({ legal: type }, '', `/${type}`);
+        }
+      } catch {
+        // Fallback for sandboxed iframes
+      }
+    }
+  }, []);
+
+  const handleCloseLegal = useCallback(() => {
+    sound.playSelect();
+    setActiveLegalPage(null);
+    if (typeof window !== 'undefined') {
+      const isIframe = window.self !== window.top;
+      try {
+        if (isIframe) {
+          window.history.pushState(null, '', window.location.pathname + window.location.search);
+        } else {
+          window.history.pushState(null, '', '/');
+        }
+      } catch {
+        // Fallback
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const p = window.location.pathname;
+      const h = window.location.hash;
+      if (p === '/privacy' || p === '/imprintprivacypolicy' || h === '#privacy') {
+        setActiveLegalPage('privacy');
+      } else if (p === '/tos' || h === '#tos') {
+        setActiveLegalPage('tos');
+      } else {
+        setActiveLegalPage(null);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
   const lobbyManagerRef = useRef<LobbyManager>(null as unknown as LobbyManager);
   if (!lobbyManagerRef.current) {
     lobbyManagerRef.current = new LobbyManager();
@@ -411,6 +481,21 @@ function App() {
     music.init();
   };
 
+  // Expose headless debug helper for screenshot captures and test suites
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      (window as unknown as { __solarmax?: unknown }).__solarmax = {
+        launchFleets: (sourceIds: string[], targetId: string) => handleLaunchFleets(sourceIds, targetId),
+        selectLevel: (level: LevelConfig) => handleSelectLevel(level),
+        getCurrentLevel: () => currentLevel,
+        getPhysicsState: () => physicsStateRef.current,
+        setSpeed: (speed: number) => setSpeedMultiplier(speed),
+        pause: () => setIsPaused(true),
+        resume: () => setIsPaused(false)
+      };
+    }
+  }, [handleLaunchFleets, currentLevel]);
+
   const handleRestart = () => {
     setPhysicsState(initLevel(currentLevel));
     setSelectedPlanetIds([]);
@@ -490,38 +575,40 @@ function App() {
               playerFaction={gameState === 'multiplayer_playing' ? lobbyManagerRef.current!.myFaction : 'player'}
             />
           </div>
-          <HUD
-            levelName={currentLevel.name}
-            planets={physicsState.planets}
-            ships={physicsState.ships}
-            sendPercentage={sendPercentage}
-            onSetSendPercentage={setSendPercentage}
-            speedMultiplier={speedMultiplier}
-            onSetSpeedMultiplier={setSpeedMultiplier}
-            isPaused={isPaused}
-            onTogglePause={() => {
-              if (gameState !== 'multiplayer_playing') {
-                setIsPaused(p => !p);
-              }
-            }}
-            isMuted={isMuted}
-            onToggleMute={handleToggleMute}
-            onSelectAllPlayerPlanets={handleSelectAllPlayer}
-            onRestartLevel={handleRestart}
-            onOpenLevelSelect={() => {
-              setIsPaused(true);
-              setShowLevelSelect(true);
-            }}
-            settingsMenu={hudSettingsMenu}
-            isMultiplayer={gameState === 'multiplayer_playing'}
-            playerFaction={lobbyManagerRef.current!.myFaction}
-            onLeaveMultiplayer={async () => {
-              await lobbyManagerRef.current!.leaveRoom();
-              syncEngineRef.current!.stopHostSyncLoop();
-              setGameState('menu');
-              setShowLevelSelect(true);
-            }}
-          />
+          {!isHideHud && (
+            <HUD
+              levelName={currentLevel.name}
+              planets={physicsState.planets}
+              ships={physicsState.ships}
+              sendPercentage={sendPercentage}
+              onSetSendPercentage={setSendPercentage}
+              speedMultiplier={speedMultiplier}
+              onSetSpeedMultiplier={setSpeedMultiplier}
+              isPaused={isPaused}
+              onTogglePause={() => {
+                if (gameState !== 'multiplayer_playing') {
+                  setIsPaused(p => !p);
+                }
+              }}
+              isMuted={isMuted}
+              onToggleMute={handleToggleMute}
+              onSelectAllPlayerPlanets={handleSelectAllPlayer}
+              onRestartLevel={handleRestart}
+              onOpenLevelSelect={() => {
+                setIsPaused(true);
+                setShowLevelSelect(true);
+              }}
+              settingsMenu={hudSettingsMenu}
+              isMultiplayer={gameState === 'multiplayer_playing'}
+              playerFaction={lobbyManagerRef.current!.myFaction}
+              onLeaveMultiplayer={async () => {
+                await lobbyManagerRef.current!.leaveRoom();
+                syncEngineRef.current!.stopHostSyncLoop();
+                setGameState('menu');
+                setShowLevelSelect(true);
+              }}
+            />
+          )}
         </>
       ) : null}
 
@@ -623,6 +710,7 @@ function App() {
             setShowLevelSelect(false);
             setShowMultiplayerLobby(true);
           }}
+          onOpenLegal={handleOpenLegal}
           settingsMenu={modalSettingsMenu}
         />
       )}
@@ -714,6 +802,14 @@ function App() {
 
       {showAdminDashboard && (
         <AdminDashboard onClose={() => setShowAdminDashboard(false)} />
+      )}
+
+      {activeLegalPage && (
+        <LegalPages 
+          type={activeLegalPage} 
+          onClose={handleCloseLegal} 
+          onSwitchType={handleOpenLegal}
+        />
       )}
 
       <div id="portrait-warning" className="fixed inset-0 z-[9999] bg-black hidden flex-col items-center justify-center p-8 text-center text-white touch-none">

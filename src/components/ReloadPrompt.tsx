@@ -3,11 +3,17 @@ import { useRegisterSW } from 'virtual:pwa-register/react';
 import { RefreshCw, X } from 'lucide-react';
 
 export const ReloadPrompt: React.FC = () => {
+  const isIframe = typeof window !== 'undefined' && window.self !== window.top;
+
   const {
     needRefresh: [needRefresh, setNeedRefresh],
     updateServiceWorker,
   } = useRegisterSW({
     onRegistered(r) {
+      if (isIframe && r) {
+        // Portal/iframe safety: prevent stale cache hijacking when games are updated on portals like itch.io
+        r.unregister().catch(() => {});
+      }
       console.log('SW Registered:', r);
     },
     onRegisterError(error) {
@@ -19,7 +25,7 @@ export const ReloadPrompt: React.FC = () => {
     setNeedRefresh(false);
   };
 
-  if (!needRefresh) return null;
+  if (isIframe || !needRefresh) return null;
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 p-2 sm:p-4 pb-16 sm:pb-24 pointer-events-none flex justify-center animate-in slide-in-from-bottom-10 fade-in duration-500">

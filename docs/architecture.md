@@ -104,3 +104,35 @@ sequenceDiagram
 - **Client-Side Hash**: Before a login or signup request is fired, the frontend uses native `crypto.subtle` to shred the password into a 384-bit hash. 
 - **Server-Side Hash**: Supabase's GoTrue engine receives the hash and applies `bcrypt` before storing it.
 - **Zero Caveats Migration**: A headless script was utilized to instantly rotate and migrate old, plain-text passwords into this new protocol via the Supabase Service Role, preventing user lockouts.
+
+---
+
+## 8. Multi-Target Distribution Pipeline (Vercel & Itch.io)
+The architecture supports dual-target deployment from a unified codebase: high-performance PWA on Vercel and sandboxed iframe execution on gaming portals such as Itch.io.
+
+```mermaid
+flowchart LR
+    SRC["Source Code (React 19 + Vite 8)"] --> BUILD["Universal Build (base: './')"]
+    BUILD --> VERCEL["Target A: Vercel Production\n- Standalone PWA / A2HS\n- Full Service Worker Precache\n- Direct HTTPS Domain"]
+    BUILD --> ITCH["Target B: Itch.io Standalone ZIP\n- Sandboxed Iframe (itch.zone)\n- Root index.html packaging\n- Anti-Cache Freeze Protection\n- PWA Banner Auto-Suppression"]
+```
+
+### 8.1 Universal Relative Base & Asset Resolution
+- `vite.config.ts` enforces `base: './'`. All `<script>`, `<link>`, and static CSS bundles resolve relatively.
+- Runtime asset resolution (e.g. streaming OGG audio tracks in `music.ts`, branding SVGs in modals) dynamically prepends `import.meta.env.BASE_URL`, preventing HTTP 404 errors when hosted in arbitrary CDN nested paths (`/html/[id]/index.html`).
+
+### 8.2 Iframe Isolation Architecture
+1. **PWA Install Banner Suppression**: `InstallBanner.tsx` detects nested execution (`window.self !== window.top`) and immediately unmounts, avoiding redundant A2HS prompts blocked by portal sandbox policies.
+2. **Anti-Cache Freeze Protection**: In `ReloadPrompt.tsx`, if the game detects it is running inside an iframe, any active Service Worker is automatically unregistered. This guarantees that when a developer uploads a new zip release to itch.io, players always receive the latest version without stale service worker hijacking.
+
+### 8.3 Release & Packaging Pipeline
+- **Command**: `npm run build:itch` (or `bun run scripts/package-itch.ts`)
+- **Automated Pre-flight Matrix**:
+  1. Compiles TypeScript and production assets.
+  2. Scans `dist/index.html` for hazardous absolute root paths (`/assets/...`).
+  3. Archives contents directly into `release/solarmax-zero-itch.zip` ensuring `index.html` resides at archive root.
+  4. Validates archive structure via `unzip -l`.
+- **Integrated Release (`scripts/release.ts`)**:
+  - Guards against tag collisions and malformed versions.
+  - Automatically executes the Itch.io packager before tagging.
+  - Includes atomic rollback protection for `package.json` if compilation or packaging fails.

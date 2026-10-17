@@ -789,15 +789,34 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         ctx.translate(ship.x, ship.y);
         ctx.rotate(angle);
         
+        // Dynamic speed contrail / plasma trail for in-transit ships
+        if (ship.state === 'transit') {
+           const factionColor = FACTIONS[ship.faction]?.color || '#00f0ff';
+           ctx.save();
+           const grad = ctx.createLinearGradient(0, 0, -22, 0);
+           grad.addColorStop(0, '#ffffff');
+           grad.addColorStop(0.25, factionColor);
+           grad.addColorStop(1, 'transparent');
+           ctx.fillStyle = grad;
+           ctx.beginPath();
+           ctx.moveTo(-3, -2.2);
+           ctx.lineTo(-22, 0);
+           ctx.lineTo(-3, 2.2);
+           ctx.closePath();
+           ctx.globalAlpha = 0.85;
+           ctx.fill();
+           ctx.restore();
+        }
+
         ctx.drawImage(sprite, -20, -20);
         
         // engine glow
         if (ship.state === 'transit') {
            ctx.fillStyle = '#ffffff';
-           ctx.globalAlpha = 0.6 + 0.4 * Math.sin(t * 30);
+           ctx.globalAlpha = 0.7 + 0.3 * Math.sin(t * 30);
            ctx.beginPath();
            // we are still translated and rotated here, so -4, 0 is the back of the ship
-           ctx.arc(-4, 0, 1.5, 0, Math.PI * 2);
+           ctx.arc(-4, 0, 2, 0, Math.PI * 2);
            ctx.fill();
         }
         

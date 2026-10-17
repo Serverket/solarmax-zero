@@ -5,6 +5,7 @@ import { CAMPAIGN_LEVELS, MOTHERSHIP_LEVELS, generateRandomLevel } from '../util
 import { GAME_VERSION, GAME_NAME } from '../utils/version';
 import { getUnlockedLevel, getCustomMaps, deleteCustomMap, getMothershipUnlocked, type CustomMap } from '../utils/storage';
 import { FACTIONS } from '../utils/levels';
+import { sound } from '../utils/sound';
 import { BlackholeBackground } from './BlackholeBackground';
 
 interface LevelSelectModalProps {
@@ -16,6 +17,7 @@ interface LevelSelectModalProps {
   onOpenMapEditor?: (map?: CustomMap) => void;
   onOpenMultiplayer?: () => void;
   settingsMenu?: React.ReactNode;
+  onOpenLegal?: (type: 'privacy' | 'tos') => void;
 }
 
 export const LevelSelectModal: React.FC<LevelSelectModalProps> = ({
@@ -27,6 +29,7 @@ export const LevelSelectModal: React.FC<LevelSelectModalProps> = ({
   onOpenMapEditor,
   onOpenMultiplayer,
   settingsMenu,
+  onOpenLegal,
 }) => {
   const [tab, setTab] = useState<'campaign' | 'skirmish' | 'custom'>('campaign');
   const [activeSector, setActiveSector] = useState<'origin' | 'mothership'>('origin');
@@ -83,7 +86,7 @@ export const LevelSelectModal: React.FC<LevelSelectModalProps> = ({
         
         {/* Left Panel (Mobile) / Top Panel (Desktop): Branding */}
         <div className="w-[35%] [@media(min-width:768px)_and_(min-height:550px)]:w-full flex flex-col items-center justify-center shrink-0 [@media(min-width:768px)_and_(min-height:550px)]:mt-auto [@media(min-width:768px)_and_(min-height:550px)]:mb-4">
-          <img src="/favicon.svg" alt="Logo" className={`w-16 h-16 sm:w-20 sm:h-20 [@media(min-width:768px)_and_(min-height:550px)]:w-28 [@media(min-width:768px)_and_(min-height:550px)]:h-28 mb-3 sm:mb-4 transition-all duration-1000 ${isDarkSector ? 'drop-shadow-[0_0_25px_rgba(200,0,255,0.8)] hue-rotate-90' : 'drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]'}`} />
+          <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="Logo" className={`w-16 h-16 sm:w-20 sm:h-20 [@media(min-width:768px)_and_(min-height:550px)]:w-28 [@media(min-width:768px)_and_(min-height:550px)]:h-28 mb-3 sm:mb-4 transition-all duration-1000 ${isDarkSector ? 'drop-shadow-[0_0_25px_rgba(200,0,255,0.8)] hue-rotate-90' : 'drop-shadow-[0_0_15px_rgba(255,255,255,0.4)]'}`} />
           <h2 className={`text-lg sm:text-2xl [@media(min-width:768px)_and_(min-height:550px)]:text-4xl font-black font-orbitron tracking-[0.2em] uppercase text-center mb-1 transition-colors duration-1000 ${isDarkSector ? 'text-[#ff55ff] drop-shadow-[0_0_15px_rgba(255,0,255,0.6)]' : 'text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.3)]'}`}>
             {GAME_NAME}
           </h2>
@@ -445,9 +448,33 @@ export const LevelSelectModal: React.FC<LevelSelectModalProps> = ({
           <div className="flex justify-center items-center gap-3 sm:gap-4 text-center text-white/40 text-[8px] sm:text-[10px] font-orbitron tracking-widest uppercase pointer-events-auto">
             <span>Made with 🗿 by <a href="https://serverket.dev" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">Serverket</a></span>
             <span className="opacity-30">|</span>
-            <button onClick={() => window.location.href = '/privacy'} className="hover:text-[#00f0ff] transition-colors uppercase tracking-widest cursor-pointer text-left">Privacy</button>
+            <button 
+              onClick={() => {
+                sound.playSelect();
+                if (onOpenLegal) {
+                  onOpenLegal('privacy');
+                } else {
+                  window.location.href = '/privacy';
+                }
+              }} 
+              className="hover:text-[#00f0ff] transition-colors uppercase tracking-widest cursor-pointer text-left"
+            >
+              Privacy
+            </button>
             <span className="opacity-30">|</span>
-            <button onClick={() => window.location.href = '/tos'} className="hover:text-[#00f0ff] transition-colors uppercase tracking-widest cursor-pointer text-left">TOS</button>
+            <button 
+              onClick={() => {
+                sound.playSelect();
+                if (onOpenLegal) {
+                  onOpenLegal('tos');
+                } else {
+                  window.location.href = '/tos';
+                }
+              }} 
+              className="hover:text-[#00f0ff] transition-colors uppercase tracking-widest cursor-pointer text-left"
+            >
+              TOS
+            </button>
           </div>
         </div>
       </div>

@@ -1,14 +1,17 @@
 {
   "name": "solarmax-zero",
   "private": true,
-  "version": "1.9.3",
+  "version": "1.9.4",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "release": "bun run scripts/release.ts"
+    "release": "bun run scripts/release.ts",
+    "build:itch": "bun run scripts/package-itch.ts",
+    "capture:itch": "bun run scripts/capture-all-scenarios.ts",
+    "cover:itch": "bun run scripts/generate-motion-cover.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.3",
@@ -25,6 +28,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.4",
     "oxlint": "^1.75.0",
+    "puppeteer-core": "^25.14.0",
     "sharp": "^0.35.3",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",

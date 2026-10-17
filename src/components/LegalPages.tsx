@@ -1,22 +1,60 @@
+import { useEffect } from 'react';
 import { Shield, FileText, ArrowLeft, Lock, EyeOff, Activity, UserCheck, UserCog, Server, Clock } from 'lucide-react';
 import { sound } from '../utils/sound';
 
 interface LegalPagesProps {
   type: 'privacy' | 'tos';
+  onClose?: () => void;
+  onSwitchType?: (type: 'privacy' | 'tos') => void;
 }
 
-export function LegalPages({ type }: LegalPagesProps) {
+export function LegalPages({ type, onClose, onSwitchType }: LegalPagesProps) {
   const handleBack = () => {
     sound.playSelect();
-    window.location.href = '/';
+    if (onClose) {
+      onClose();
+    } else {
+      if (typeof window !== 'undefined') {
+        window.history.pushState(null, '', '/');
+        window.location.href = '/';
+      }
+    }
   };
 
   const isPrivacy = type === 'privacy';
 
+  // Dynamic SEO indexing: title & meta description update for web crawlers
+  useEffect(() => {
+    const originalTitle = document.title;
+    document.title = isPrivacy ? 'Privacy Protocol - Solarmax Zero' : 'Terms of Service - Solarmax Zero';
+
+    let metaDesc = document.querySelector('meta[name="description"]');
+    const prevDesc = metaDesc ? metaDesc.getAttribute('content') : null;
+    if (!metaDesc) {
+      metaDesc = document.createElement('meta');
+      metaDesc.setAttribute('name', 'description');
+      document.head.appendChild(metaDesc);
+    }
+    metaDesc.setAttribute(
+      'content',
+      isPrivacy
+        ? 'Solarmax Zero Privacy Protocol: Zero tracking scripts, client-side cryptographic pre-hashing, zero advertising cookies, and military-grade encryption.'
+        : 'Solarmax Zero Terms of Service: Fair play guidelines, anti-cheat policies, account security, and multiplayer server availability.'
+    );
+
+    return () => {
+      document.title = originalTitle;
+      if (metaDesc) {
+        if (prevDesc) metaDesc.setAttribute('content', prevDesc);
+        else metaDesc.remove();
+      }
+    };
+  }, [isPrivacy]);
+
   return (
     <div className="fixed inset-0 z-[100] flex flex-col items-center justify-start bg-[#050510] text-white p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-8 overflow-y-auto font-rajdhani">
       {/* Background aesthetics */}
-      <div className="fixed inset-0 bg-[url('/bg.png')] opacity-10 bg-cover bg-center pointer-events-none" />
+      <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-950/20 via-[#050510] to-[#050510] pointer-events-none" />
       <div className="fixed inset-0 bg-gradient-to-b from-[#00f0ff]/10 via-transparent to-[#00f0ff]/5 pointer-events-none" />
       
       <div className="relative w-full max-w-3xl glass-panel p-6 sm:p-10 rounded-2xl border border-[#00f0ff]/30 shadow-[0_0_50px_rgba(0,240,255,0.1)] mt-2 sm:mt-8 mb-6 sm:mb-12 shrink-0">
@@ -28,16 +66,58 @@ export function LegalPages({ type }: LegalPagesProps) {
           Command Center
         </button>
 
-        <div className="text-center mb-10 mt-8 sm:mt-4">
+        <div className="text-center mb-8 mt-8 sm:mt-4">
           <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-[#00f0ff]/20 to-blue-600/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-[#00f0ff]/40 shadow-[0_0_30px_rgba(0,240,255,0.2)]">
             {isPrivacy ? <Shield className="w-8 h-8 sm:w-10 sm:h-10 text-[#00f0ff]" /> : <FileText className="w-8 h-8 sm:w-10 sm:h-10 text-[#00f0ff]" />}
           </div>
           <h1 className="font-orbitron text-2xl sm:text-4xl font-black text-white tracking-[0.1em] uppercase glow-white mb-2">
             {isPrivacy ? 'Privacy Protocol' : 'Terms of Service'}
           </h1>
-          <p className="font-mono text-[#00f0ff]/70 text-xs sm:text-sm tracking-widest uppercase">
+          <p className="font-mono text-[#00f0ff]/70 text-xs sm:text-sm tracking-widest uppercase mb-4">
             Solarmax Zero Tactical Network
           </p>
+
+          {/* Quick tab switcher without reloads */}
+          <div className="inline-flex items-center gap-2 bg-black/40 p-1 rounded-full border border-white/10">
+            <button
+              onClick={() => {
+                if (!isPrivacy) {
+                  sound.playSelect();
+                  if (onSwitchType) {
+                    onSwitchType('privacy');
+                  } else {
+                    window.location.href = '/privacy';
+                  }
+                }
+              }}
+              className={`px-4 py-1.5 rounded-full font-orbitron text-[10px] sm:text-xs tracking-widest uppercase transition-all cursor-pointer ${
+                isPrivacy 
+                  ? 'bg-[#00f0ff]/20 text-[#00f0ff] border border-[#00f0ff]/60 shadow-[0_0_15px_rgba(0,240,255,0.3)]' 
+                  : 'text-white/50 hover:text-white border border-transparent'
+              }`}
+            >
+              Privacy Protocol
+            </button>
+            <button
+              onClick={() => {
+                if (isPrivacy) {
+                  sound.playSelect();
+                  if (onSwitchType) {
+                    onSwitchType('tos');
+                  } else {
+                    window.location.href = '/tos';
+                  }
+                }
+              }}
+              className={`px-4 py-1.5 rounded-full font-orbitron text-[10px] sm:text-xs tracking-widest uppercase transition-all cursor-pointer ${
+                !isPrivacy 
+                  ? 'bg-[#00f0ff]/20 text-[#00f0ff] border border-[#00f0ff]/60 shadow-[0_0_15px_rgba(0,240,255,0.3)]' 
+                  : 'text-white/50 hover:text-white border border-transparent'
+              }`}
+            >
+              Terms of Service
+            </button>
+          </div>
         </div>
 
         <div className="space-y-8 text-white/80 leading-relaxed text-sm sm:text-base">

@@ -5,6 +5,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: './',
   envPrefix: ['VITE_', 'SUPABASE_', 'CIA', 'NSA'],
   plugins: [
     react(),

@@ -78,11 +78,24 @@ xychart-beta
     bar "Current (Commit every 10s)" [4, 4, 4, 4, 4, 4, 4, 4, 4, 18]
 ```
 
-## 🚀 Build and Run
+## 🚀 Build, Run & Distribution
 
+### Local Development
 ```bash
 npm install
 npm run dev
+```
+
+### Packaging for Itch.io (HTML5 Standalone ZIP)
+Generates `release/solarmax-zero-itch.zip` ready for upload, with 100% relative base assets, root-level `index.html`, and portal iframe isolation:
+```bash
+npm run build:itch
+```
+
+### Automated Dual-Target Release
+Bumps version, builds the Itch.io standalone package, stages git tags, and pushes to GitHub to trigger Vercel deployment:
+```bash
+npm run release <version> [--note "release notes"]
 ```
 
 ## :brain: Acknowledgments

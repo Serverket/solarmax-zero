@@ -36,3 +36,9 @@ bun.lock
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Release archives & distribution directories
+*.zip
+solarmax-zero-itch.zip
+release/
+dist-itch/

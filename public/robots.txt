@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Allow: /privacy
+Allow: /tos
+
+Sitemap: https://solarmax-zero.vercel.app/sitemap.xml

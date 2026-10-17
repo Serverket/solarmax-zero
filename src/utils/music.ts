@@ -45,7 +45,7 @@ class MusicEngine {
   private playCurrentTrack() {
     if (!this.audio || this.isMuted) return;
     const track = TRACKS[this.currentTrackIndex];
-    this.audio.src = `/audio/${track.file}`;
+    this.audio.src = `${import.meta.env.BASE_URL}audio/${track.file}`;
     this.audio.play().then(() => {
       this.notify();
     }).catch(e => {
