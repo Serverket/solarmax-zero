@@ -19,6 +19,38 @@ Solarmax Zero is a highly optimized web-based reimagining of the classic Solarma
 > **Original Concept & Inspiration**: Inspired by classic RTS mechanics created by the talented indie developer **[Nico Tuason](https://x.com/nicotuason)**. This project is a passionate fan-made architectural reimagining built for the modern web.
 
 > **Original Soundtrack (OST)**: Space Ambient tracks generously provided by **[Stellardrone](https://stellardrone.bandcamp.com/)** under the Creative Commons BY 3.0 license. Album: *Light Years*.
+
+## 📸 Gameplay & Visuals
+
+<table>
+  <tr>
+    <td width="50%">
+      <a href="./promo/itch/screenshot-1.jpg"><img src="./promo/itch/screenshot-1.jpg" alt="1v1 Tactical Duel" width="100%"></a>
+      <p align="center"><sub><b>1v1 Tactical Duel (First Contact)</b></sub></p>
+    </td>
+    <td width="50%">
+      <a href="./promo/itch/screenshot-2.jpg"><img src="./promo/itch/screenshot-2.jpg" alt="Multi-Faction Warfare" width="100%"></a>
+      <p align="center"><sub><b>4-Faction Galactic Clash (Chaos)</b></sub></p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <a href="./promo/itch/screenshot-3.jpg"><img src="./promo/itch/screenshot-3.jpg" alt="Colossal Mothership Battle" width="100%"></a>
+      <p align="center"><sub><b>Colossal Mothership Battle & Defense Turrets</b></sub></p>
+    </td>
+    <td width="50%">
+      <a href="./promo/itch/screenshot-5.jpg"><img src="./promo/itch/screenshot-5.jpg" alt="Hyperspace Warp Portals" width="100%"></a>
+      <p align="center"><sub><b>Hyperspace Warp Portals (Warp Storm)</b></sub></p>
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" width="100%">
+      <a href="./promo/itch/screenshot-4.jpg"><img src="./promo/itch/screenshot-4.jpg" alt="Sector Navigation & Campaign Map" width="100%"></a>
+      <p align="center"><sub><b>Galactic Sector Navigation & Mission Hub</b></sub></p>
+    </td>
+  </tr>
+</table>
+
 ## 🏷️ Project Versioning
 
 This project adheres to Semantic Versioning (SemVer) with a unified standard:
