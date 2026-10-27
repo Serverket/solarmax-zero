@@ -559,7 +559,11 @@ function App() {
   );
 
   return (
-    <div className="fixed inset-0 w-full h-[100dvh] overflow-hidden bg-[#0a0a14] overscroll-none touch-none">
+    <div className="fixed inset-0 w-full h-[100dvh] overflow-hidden bg-[#03050e] overscroll-none touch-none">
+      {/* Full-viewport Cosmic Ambient Nebula (Seamless 100vw x 100vh on any aspect ratio) */}
+      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_80%_70%_at_50%_50%,rgba(0,240,255,0.08)_0%,rgba(14,70,140,0.04)_40%,transparent_75%)]" />
+      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_55%_45%_at_20%_20%,rgba(56,189,248,0.06)_0%,transparent_60%)]" />
+      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_55%_45%_at_80%_80%,rgba(129,140,248,0.05)_0%,transparent_60%)]" />
       {gameState === 'playing' || gameState === 'multiplayer_playing' || gameState === 'paused' || gameState === 'victory' || gameState === 'defeat' ? (
         <>
           <div className="game-canvas-container">

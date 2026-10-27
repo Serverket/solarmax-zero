@@ -108,7 +108,9 @@ export const MapEditor: React.FC<MapEditorProps> = ({ initialPlanets, initialMap
   const factions: FactionId[] = ['neutral', 'player', 'ai1', 'ai2', 'ai3', 'ai4'];
 
   return (
-    <div className="absolute inset-0 z-40 flex flex-col bg-[#0a0a14]">
+    <div className="absolute inset-0 z-40 flex flex-col bg-[#03050e]">
+      {/* Full-viewport Cosmic Ambient Nebula */}
+      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_80%_70%_at_50%_50%,rgba(0,240,255,0.08)_0%,rgba(14,70,140,0.04)_40%,transparent_75%)]" />
       {/* Canvas Layer */}
       <div className="absolute inset-0 z-0 game-canvas-container">
         <GameCanvas

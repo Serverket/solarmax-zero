@@ -47,7 +47,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   const planetTexturesRef = useRef<Record<string, HTMLCanvasElement>>({});
 
   useEffect(() => {
-    // Generate ship sprites
+    // Generate ship sprites with specular metallic gleam
     const factions: FactionId[] = ['player', 'ai1', 'ai2', 'ai3', 'ai4', 'neutral'];
     const sprites: Record<string, HTMLCanvasElement> = {};
     
@@ -337,7 +337,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         ctx.translate(sx, sy);
       }
 
-      // Background - clean transparent space to fix browser canvas color profile washout
+      // Background - clean transparent space allowing full-viewport cosmic background to show seamlessly
       ctx.clearRect(-20, -20, width + 40, height + 40);
 
       // Stars
@@ -440,8 +440,19 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
            });
         }
 
+        // Classic Solarmax Gaussian Glow (GlowFilter style: soft Gaussian blur around rim to eliminate aliasing)
+        ctx.save();
+        ctx.shadowColor = faction.color;
+        ctx.shadowBlur = Math.round(planet.radius * 0.55 + 8);
+        ctx.fillStyle = faction.color;
+        ctx.globalAlpha = planet.owner === 'neutral' ? 0.25 : 0.6;
+        ctx.beginPath();
+        ctx.arc(planet.x, planet.y, planet.radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
         // Base glow
-        ctx.shadowBlur = 15;
+        ctx.shadowBlur = 10;
         ctx.shadowColor = faction.color;
         
         // Planet body
@@ -568,13 +579,13 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
                planet.y, 
                planet.radius
              );
-             shadowGrad.addColorStop(0, 'rgba(255, 255, 255, 0.4)');
-             shadowGrad.addColorStop(0.5, 'rgba(0, 0, 0, 0)');
+             shadowGrad.addColorStop(0, 'rgba(255, 255, 255, 0.15)');
+             shadowGrad.addColorStop(0.4, 'rgba(0, 0, 0, 0)');
              shadowGrad.addColorStop(1, 'rgba(0, 0, 0, 0.6)');
              
              ctx.fillStyle = shadowGrad;
              ctx.fillRect(planet.x - planet.radius, planet.y - planet.radius, planet.radius * 2, planet.radius * 2);
-             
+
              ctx.globalCompositeOperation = 'source-over';
           } else {
              // Fallback
@@ -718,36 +729,56 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           ctx.stroke();
         }
 
-        // Selection ring
+        // Selection ring (Línea elegante hecha de sombra blanca difuminada, sin líneas punteadas)
         if (isSelected) {
+          ctx.save();
+          const selPulse = 0.5 + 0.5 * Math.sin(t * 3.5);
+
+          // 1. Capa exterior difuminada de sombra blanca atmosférica
+          ctx.shadowColor = 'rgba(255, 255, 255, 0.95)';
+          ctx.shadowBlur = 12 + selPulse * 5;
           ctx.strokeStyle = '#ffffff';
-          ctx.lineWidth = 2;
-          ctx.setLineDash([8, 4]);
-          ctx.lineDashOffset = -t * 20;
+          ctx.lineWidth = 2.2;
           ctx.beginPath();
           ctx.arc(planet.x, planet.y, planet.radius + 6, 0, Math.PI * 2);
           ctx.stroke();
-          ctx.setLineDash([]);
+
+          // 2. Halo difuso secundario ultra-suave
+          ctx.shadowBlur = 22 + selPulse * 8;
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+          ctx.lineWidth = 1.0;
+          ctx.beginPath();
+          ctx.arc(planet.x, planet.y, planet.radius + 8.5, 0, Math.PI * 2);
+          ctx.stroke();
+
+          ctx.restore();
         }
 
-        // Hover ring
+        // Hover ring (Aura difuminada blanca sutil al posar el cursor)
         if (isHovered && !isSelected) {
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+          ctx.save();
+          ctx.shadowColor = 'rgba(255, 255, 255, 0.7)';
+          ctx.shadowBlur = 9;
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)';
           ctx.lineWidth = 1.5;
           ctx.beginPath();
-          ctx.arc(planet.x, planet.y, planet.radius + 5, 0, Math.PI * 2);
+          ctx.arc(planet.x, planet.y, planet.radius + 5.5, 0, Math.PI * 2);
           ctx.stroke();
+          ctx.restore();
         }
 
-        // Snap indicator
+        // Snap indicator (Anillo difuminado de fijación de objetivo al arrastrar)
         if (isSnapped) {
+          ctx.save();
+          const snapPulse = 0.5 + 0.5 * Math.sin(t * 8);
+          ctx.shadowColor = '#ffffff';
+          ctx.shadowBlur = 15 + snapPulse * 6;
           ctx.strokeStyle = '#ffffff';
-          ctx.lineWidth = 2;
-          ctx.setLineDash([4, 4]);
+          ctx.lineWidth = 2.2;
           ctx.beginPath();
-          ctx.arc(planet.x, planet.y, planet.radius + 10, 0, Math.PI * 2);
+          ctx.arc(planet.x, planet.y, planet.radius + 9 + snapPulse * 2, 0, Math.PI * 2);
           ctx.stroke();
-          ctx.setLineDash([]);
+          ctx.restore();
         }
 
         // Draw FRONT orbiting garrison ships
@@ -828,22 +859,24 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
          const alpha = Math.max(0, Math.min(1, l.life / l.maxLife));
          ctx.save();
          ctx.strokeStyle = l.color;
-         ctx.lineWidth = 2;
+         ctx.lineWidth = 2.5;
          ctx.globalAlpha = alpha;
          ctx.shadowColor = l.color;
-         ctx.shadowBlur = 8;
+         ctx.shadowBlur = 10;
          ctx.beginPath();
          const speed = Math.sqrt(l.vx*l.vx + l.vy*l.vy) || 1;
-         const len = 12;
+         const len = 14;
          const dx = (l.vx / speed) * len;
          const dy = (l.vy / speed) * len;
          ctx.moveTo(l.x - dx, l.y - dy);
          ctx.lineTo(l.x + dx, l.y + dy);
          ctx.stroke();
          
-         // core
+         // Specular white-hot core
          ctx.strokeStyle = '#ffffff';
-         ctx.lineWidth = 1;
+         ctx.lineWidth = 1.2;
+         ctx.shadowColor = '#ffffff';
+         ctx.shadowBlur = 4;
          ctx.stroke();
          ctx.restore();
       });
@@ -880,11 +913,13 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       if (dragStart && dragCurrent) {
         if (isBoxSelecting) {
           ctx.save();
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-          ctx.lineWidth = 1;
-          ctx.setLineDash([4, 4]);
-          ctx.lineDashOffset = -t * 10;
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.75)';
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+          ctx.lineWidth = 1.5;
+          ctx.shadowColor = 'rgba(255, 255, 255, 0.6)';
+          ctx.shadowBlur = 6;
+          ctx.setLineDash([6, 4]);
+          ctx.lineDashOffset = -t * 12;
           const x = Math.min(dragStart.x, dragCurrent.x);
           const y = Math.min(dragStart.y, dragCurrent.y);
           const w = Math.abs(dragCurrent.x - dragStart.x);
@@ -902,10 +937,12 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             if (!sp) return;
 
             ctx.save();
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+            ctx.shadowColor = 'rgba(255, 255, 255, 0.8)';
+            ctx.shadowBlur = 6;
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
             ctx.lineWidth = 2;
-            ctx.setLineDash([6, 6]);
-            ctx.lineDashOffset = -t * 20;
+            ctx.setLineDash([8, 6]);
+            ctx.lineDashOffset = -t * 24;
             ctx.beginPath();
             ctx.moveTo(sp.x, sp.y);
             ctx.lineTo(tx, ty);
@@ -917,7 +954,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             const angle = Math.atan2(dy, dx);
             ctx.translate(tx, ty);
             ctx.rotate(angle);
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+            ctx.fillStyle = '#ffffff';
+            ctx.shadowColor = '#ffffff';
+            ctx.shadowBlur = 8;
             ctx.beginPath();
             ctx.moveTo(-10, -5);
             ctx.lineTo(0, 0);
