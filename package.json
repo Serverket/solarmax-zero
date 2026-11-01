@@ -1,13 +1,14 @@
 {
   "name": "solarmax-zero",
   "private": true,
-  "version": "1.9.8",
+  "version": "1.9.9",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview",
+    "test": "bun test",
     "release": "bun run scripts/release.ts",
     "build:itch": "bun run scripts/package-itch.ts",
     "capture:itch": "bun run scripts/capture-all-scenarios.ts",

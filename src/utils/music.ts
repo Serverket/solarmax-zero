@@ -1,3 +1,5 @@
+import { resolveAssetUrl } from './assets';
+
 export const TRACKS = [
   { file: "01RedGiant.ogg", name: "Red Giant" },
   { file: "02Airglow.ogg", name: "Airglow" },
@@ -45,7 +47,7 @@ class MusicEngine {
   private playCurrentTrack() {
     if (!this.audio || this.isMuted) return;
     const track = TRACKS[this.currentTrackIndex];
-    this.audio.src = `${import.meta.env.BASE_URL}audio/${track.file}`;
+    this.audio.src = resolveAssetUrl(`audio/${track.file}`);
     this.audio.play().then(() => {
       this.notify();
     }).catch(e => {

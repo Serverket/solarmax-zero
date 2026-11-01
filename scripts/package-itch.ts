@@ -26,8 +26,15 @@ try {
   process.exit(1);
 }
 
-// 2. Pre-flight Verification Matrix
-console.log('\n🔍 Step 2: Running Pre-flight Quality & Compatibility Matrix...');
+// 2. Pre-flight Verification Matrix & Automated Test Suite
+console.log('\n🔍 Step 2: Running Automated Unit Test Suite & Pre-flight Quality Matrix...');
+try {
+  execSync('bun test', { stdio: 'inherit', cwd: ROOT_DIR });
+  console.log('  ✅ Automated Test Suite: All unit tests passed without errors.');
+} catch (error) {
+  console.error('❌ Unit tests failed! Aborting packaging.', error);
+  process.exit(1);
+}
 
 const indexHtmlPath = path.join(DIST_DIR, 'index.html');
 if (!existsSync(indexHtmlPath)) {
@@ -57,6 +64,24 @@ if (existsSync(distAudioDir)) {
   console.log('  ✅ Audio Assets: Present in dist/audio/');
 } else {
   console.warn('  ⚠️ Warning: dist/audio/ not detected.');
+}
+
+// Check textures directory and verify all 12 biomes
+const distTexturesDir = path.join(DIST_DIR, 'textures');
+if (existsSync(distTexturesDir)) {
+  const expectedTextures = [
+    'small.png', 'medium.png', 'large.png', 'ice.png', 'desert.png', 'volcanic.png',
+    'oceanic.png', 'toxic.png', 'magma.png', 'crystalline.png', 'neptune.png', 'barren.png'
+  ];
+  const missing = expectedTextures.filter(t => !existsSync(path.join(distTexturesDir, t)));
+  if (missing.length === 0) {
+    console.log(`  ✅ Planet Textures: All 12 biomes present in dist/textures/`);
+  } else {
+    console.warn(`  ⚠️ Warning: Missing textures in dist/textures/: ${missing.join(', ')}`);
+  }
+} else {
+  console.error('  ❌ ERROR: dist/textures/ directory not found!');
+  process.exit(1);
 }
 
 // 3. Compress into solarmax-zero-itch.zip

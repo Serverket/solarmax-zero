@@ -469,7 +469,7 @@ function App() {
 
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [gameState]);
+  }, [gameState, showTutorial]);
 
   const handleLaunchFleets = useCallback((sourceIds: string[], targetId: string) => {
     if (gameState === 'multiplayer_playing') {

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { GameCanvas } from './GameCanvas';
 import type { Planet, PlanetType, FactionId } from '../types/game';
 import { FACTIONS } from '../utils/levels';
-import { Pencil, Play, Trash2, Link as LinkIcon, Crosshair, Hexagon, Circle, Zap } from 'lucide-react';
+import { Pencil, Play, Trash2, Link as LinkIcon, Crosshair, Hexagon, Circle, Zap, MousePointer } from 'lucide-react';
 
 interface MapEditorProps {
   initialPlanets: Planet[];
@@ -135,94 +135,118 @@ export const MapEditor: React.FC<MapEditorProps> = ({ initialPlanets, initialMap
       </div>
 
       {/* Top Toolbar */}
-      <div className="relative z-10 glass-panel-glow-white bg-black/50 p-2 sm:p-4 pt-[max(env(safe-area-inset-top),0.5rem)] flex justify-between items-center border-b border-white/10 shadow-lg">
-        <div className="flex items-center gap-2 sm:gap-4 shrink-0">
-          <Pencil className="w-5 h-5 text-white/50 hidden md:block" />
+      <div className="relative z-10 glass-panel-glow-white bg-black/60 p-2 sm:p-3 pt-[max(env(safe-area-inset-top),0.5rem)] flex justify-between items-center border-b border-white/10 shadow-lg gap-2">
+        {/* Map Name Left */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <Pencil className="w-4 h-4 text-white/50 hidden md:block shrink-0" />
           <input 
             type="text" 
             value={mapName}
             onChange={(e) => setMapName(e.target.value)}
-            className="text-lg sm:text-xl font-orbitron font-bold text-white tracking-widest uppercase bg-transparent border-b border-white/20 focus:border-white outline-none w-32 sm:w-64 glow-white"
+            className="text-xs sm:text-sm font-orbitron font-bold text-white tracking-wider uppercase bg-transparent border-b border-white/20 focus:border-white outline-none w-24 sm:w-28 md:w-32 lg:w-44 glow-white truncate"
             placeholder="MAP NAME"
             maxLength={30}
+            title={mapName}
           />
         </div>
         
-        <div className="flex flex-nowrap justify-start sm:justify-center gap-1 sm:gap-2 overflow-x-auto no-scrollbar mx-2 flex-1">
-          <button 
-            onClick={() => setTool('select')} 
-            className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded text-[10px] sm:text-xs font-bold uppercase tracking-widest transition-all ${tool === 'select' ? 'bg-white text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
-          >
-            <span className="hidden md:inline">Select</span>
-          </button>
-          <button 
-            onClick={() => setTool('add_standard')} 
-            className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded text-[10px] sm:text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-1 sm:gap-2 ${tool === 'add_standard' ? 'bg-white text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
-          >
-            <Circle className="w-4 h-4" /> <span className="hidden md:inline">Planet</span>
-          </button>
-          <button 
-            onClick={() => setTool('add_mothership')} 
-            className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded text-[10px] sm:text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-1 sm:gap-2 ${tool === 'add_mothership' ? 'bg-white text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
-          >
-            <Hexagon className="w-4 h-4" /> <span className="hidden md:inline">Mothership</span>
-          </button>
-          <button 
-            onClick={() => setTool('add_turret')} 
-            className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded text-[10px] sm:text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-1 sm:gap-2 ${tool === 'add_turret' ? 'bg-white text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
-          >
-            <Crosshair className="w-4 h-4" /> <span className="hidden md:inline">Turret</span>
-          </button>
-          <button 
-            onClick={() => setTool('add_portal')} 
-            className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded text-[10px] sm:text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-1 sm:gap-2 ${tool === 'add_portal' ? 'bg-white text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
-          >
-            <LinkIcon className="w-4 h-4" /> <span className="hidden md:inline">Portal</span>
-          </button>
-          <button 
-            onClick={() => setTool('add_bfg')} 
-            className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded text-[10px] sm:text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-1 sm:gap-2 ${tool === 'add_bfg' ? 'bg-white text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
-          >
-            <Zap className="w-4 h-4 text-emerald-400" /> <span className="hidden md:inline">BFG</span>
-          </button>
-          <button 
-            onClick={() => setTool('delete')} 
-            className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded text-[10px] sm:text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-1 sm:gap-2 ${tool === 'delete' ? 'bg-red-500 text-white' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
-          >
-            <Trash2 className="w-4 h-4" /> <span className="hidden md:inline">Delete</span>
-          </button>
+        {/* Centered / Responsive Tools Carousel */}
+        <div className="flex-1 min-w-0 overflow-x-auto no-scrollbar mx-1 sm:mx-2 flex items-center">
+          <div className="flex items-center gap-1 sm:gap-1.5 mx-auto shrink-0">
+            <button 
+              onClick={() => setTool('select')} 
+              title="Select (S)"
+              className={`px-2 sm:px-2.5 py-1 sm:py-1.5 rounded text-[10px] sm:text-xs font-bold uppercase tracking-wide transition-all flex items-center gap-1.5 ${tool === 'select' ? 'bg-white text-black shadow-[0_0_10px_rgba(255,255,255,0.4)]' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
+            >
+              <MousePointer className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+              <span className="hidden xl:inline">Select</span>
+            </button>
+            <button 
+              onClick={() => setTool('add_standard')} 
+              title="Add Planet (P)"
+              className={`px-2 sm:px-2.5 py-1 sm:py-1.5 rounded text-[10px] sm:text-xs font-bold uppercase tracking-wide transition-all flex items-center gap-1.5 ${tool === 'add_standard' ? 'bg-white text-black shadow-[0_0_10px_rgba(255,255,255,0.4)]' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
+            >
+              <Circle className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+              <span className="hidden xl:inline">Planet</span>
+            </button>
+            <button 
+              onClick={() => setTool('add_mothership')} 
+              title="Add Mothership (M)"
+              className={`px-2 sm:px-2.5 py-1 sm:py-1.5 rounded text-[10px] sm:text-xs font-bold uppercase tracking-wide transition-all flex items-center gap-1.5 ${tool === 'add_mothership' ? 'bg-white text-black shadow-[0_0_10px_rgba(255,255,255,0.4)]' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
+            >
+              <Hexagon className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+              <span className="hidden xl:inline">Mothership</span>
+            </button>
+            <button 
+              onClick={() => setTool('add_turret')} 
+              title="Add Turret (T)"
+              className={`px-2 sm:px-2.5 py-1 sm:py-1.5 rounded text-[10px] sm:text-xs font-bold uppercase tracking-wide transition-all flex items-center gap-1.5 ${tool === 'add_turret' ? 'bg-white text-black shadow-[0_0_10px_rgba(255,255,255,0.4)]' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
+            >
+              <Crosshair className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+              <span className="hidden xl:inline">Turret</span>
+            </button>
+            <button 
+              onClick={() => setTool('add_portal')} 
+              title="Add Portal (O)"
+              className={`px-2 sm:px-2.5 py-1 sm:py-1.5 rounded text-[10px] sm:text-xs font-bold uppercase tracking-wide transition-all flex items-center gap-1.5 ${tool === 'add_portal' ? 'bg-white text-black shadow-[0_0_10px_rgba(255,255,255,0.4)]' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
+            >
+              <LinkIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+              <span className="hidden xl:inline">Portal</span>
+            </button>
+            <button 
+              onClick={() => setTool('add_bfg')} 
+              title="Add BFG Superweapon (B)"
+              className={`px-2 sm:px-2.5 py-1 sm:py-1.5 rounded text-[10px] sm:text-xs font-bold uppercase tracking-wide transition-all flex items-center gap-1.5 ${tool === 'add_bfg' ? 'bg-white text-black shadow-[0_0_10px_rgba(255,255,255,0.4)]' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
+            >
+              <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-400 shrink-0" />
+              <span className="hidden xl:inline">BFG</span>
+            </button>
+            <button 
+              onClick={() => setTool('delete')} 
+              title="Delete Planet (Del)"
+              className={`px-2 sm:px-2.5 py-1 sm:py-1.5 rounded text-[10px] sm:text-xs font-bold uppercase tracking-wide transition-all flex items-center gap-1.5 ${tool === 'delete' ? 'bg-red-500 text-white shadow-[0_0_10px_rgba(239,68,68,0.5)]' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
+            >
+              <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+              <span className="hidden xl:inline">Delete</span>
+            </button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+        {/* Actions Right */}
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
           {settingsMenu}
-          <div className="flex flex-nowrap gap-1 sm:gap-4">
-            <button onClick={onExit} className="px-2 sm:px-6 py-2 rounded bg-white/10 hover:bg-white/20 text-white text-[10px] sm:text-xs font-bold uppercase tracking-widest transition-all">
+          <div className="flex flex-nowrap gap-1 sm:gap-2">
+            <button 
+              onClick={onExit} 
+              className="px-2 sm:px-2.5 py-1 sm:py-1.5 rounded bg-white/10 hover:bg-white/20 text-white text-[10px] sm:text-xs font-bold uppercase tracking-wide transition-all"
+            >
               Cancel
             </button>
-          <button 
-            onClick={() => {
-              const hasPlayer = planets.some(p => p.owner === 'player');
-              const hasEnemy = planets.some(p => p.owner !== 'player' && p.owner !== 'neutral');
-              
-              if (!hasPlayer) {
-                alert("Invalid Map: You must place at least one player (blue) planet.");
-                return;
-              }
-              if (!hasEnemy) {
-                alert("Invalid Map: You must place at least one enemy planet.");
-                return;
-              }
-              
-              onStartGame(planets, initialMapId, mapName);
-            }} 
-            className="px-2 sm:px-6 py-2 rounded bg-white hover:bg-gray-200 text-black text-[10px] sm:text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(255,255,255,0.4)]"
-          >
-            <Play className="w-4 h-4 fill-current hidden sm:block" /> <span className="hidden sm:inline">{initialMapId ? 'Save & Play' : 'Initialize'}</span>
-            <Play className="w-3 h-3 fill-current sm:hidden" />
-          </button>
+            <button 
+              onClick={() => {
+                const hasPlayer = planets.some(p => p.owner === 'player');
+                const hasEnemy = planets.some(p => p.owner !== 'player' && p.owner !== 'neutral');
+                
+                if (!hasPlayer) {
+                  alert("Invalid Map: You must place at least one player (blue) planet.");
+                  return;
+                }
+                if (!hasEnemy) {
+                  alert("Invalid Map: You must place at least one enemy planet.");
+                  return;
+                }
+                
+                onStartGame(planets, initialMapId, mapName);
+              }} 
+              className="px-2 sm:px-2.5 py-1 sm:py-1.5 rounded bg-white hover:bg-gray-200 text-black text-[10px] sm:text-xs font-bold uppercase tracking-wide transition-all flex items-center gap-1.5 shadow-[0_0_15px_rgba(255,255,255,0.4)]"
+            >
+              <Play className="w-3.5 h-3.5 fill-current" />
+              <span className="hidden sm:inline">{initialMapId ? 'Save & Play' : 'Initialize'}</span>
+            </button>
           </div>
         </div>
       </div>
+
 
       {/* Properties Panel */}
       {selectedPlanet && (

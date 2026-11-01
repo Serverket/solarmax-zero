@@ -71,6 +71,15 @@ body, html, #root {
   background: rgba(0, 240, 255, 0.6);
 }
 
+/* Hide scrollbar utility for clean responsive containers */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 @keyframes pulse-slow {
   0%, 100% { opacity: 0.8; transform: scale(1); }
   50% { opacity: 1; transform: scale(1.03); }

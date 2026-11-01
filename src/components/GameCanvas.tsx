@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState, useCallback } from 'react';
 import type { Planet, Ship, Spark, Laser, FactionId } from '../types/game';
 import { FACTIONS } from '../utils/levels';
 import { sound } from '../utils/sound';
+import { resolveAssetUrl, generateProceduralBiomeCanvas } from '../utils/assets';
 
 interface GameCanvasProps {
   planets: Planet[];
@@ -49,10 +50,10 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
 
   const starsRef = useRef<{ x: number; y: number; size: number; alpha: number; tw: number }[]>([]);
   const shipSpritesRef = useRef<Record<string, HTMLCanvasElement>>({});
-  const planetTexturesRef = useRef<Record<string, HTMLCanvasElement>>({});
+  const planetTexturesRef = useRef<Record<string, HTMLImageElement | HTMLCanvasElement>>({});
 
   useEffect(() => {
-    // Generate ship sprites with specular metallic gleam
+    // Generate original ship sprites with specular metallic gleam
     const factions: FactionId[] = ['player', 'ai1', 'ai2', 'ai3', 'ai4', 'neutral'];
     const sprites: Record<string, HTMLCanvasElement> = {};
     
@@ -86,7 +87,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           for (let i = 0; i < 40; i++) {
              for (let j = 0; j < 40; j++) {
                 if (Math.random() > 0.6) {
-                   ctx.fillStyle = `rgba(255,255,255,0.15)`;
+                   ctx.fillStyle = "rgba(255,255,255,0.15)";
                    ctx.fillRect(i - 20, j - 20, 1, 1);
                 }
              }
@@ -101,35 +102,30 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     });
     shipSpritesRef.current = sprites;
 
-    // Procedural Planet Texture (Seamless, no equator lines)
-    const procCanvas = document.createElement('canvas');
-    procCanvas.width = 512;
-    procCanvas.height = 512;
-    const pCtx = procCanvas.getContext('2d');
-    if (pCtx) {
-       pCtx.fillStyle = '#999999';
-       pCtx.fillRect(0, 0, 512, 512);
-       // Add smooth craters/noise
-       for(let i=0; i<3000; i++) {
-          pCtx.fillStyle = `rgba(0, 0, 0, ${Math.random() * 0.08})`;
-          pCtx.beginPath();
-          pCtx.arc(Math.random() * 512, Math.random() * 512, Math.random() * 8, 0, Math.PI * 2);
-          pCtx.fill();
-       }
-       for(let i=0; i<1500; i++) {
-          pCtx.fillStyle = `rgba(255, 255, 255, ${Math.random() * 0.05})`;
-          pCtx.beginPath();
-          pCtx.arc(Math.random() * 512, Math.random() * 512, Math.random() * 5, 0, Math.PI * 2);
-          pCtx.fill();
-       }
-    }
-    
-    const loadedImages: Record<string, HTMLCanvasElement> = {
-       small: procCanvas,
-       medium: procCanvas,
-       large: procCanvas
-    };
-    planetTexturesRef.current = loadedImages;
+    // 1. Synchronously pre-populate planetTexturesRef with procedural canvas textures for all 12 biomes.
+    // This guarantees that planets NEVER render as blank/empty circles under any network condition (0ms fallback).
+    const biomesList = [
+      'small', 'medium', 'large', 'ice', 'desert', 'volcanic',
+      'oceanic', 'toxic', 'magma', 'crystalline', 'neptune', 'barren'
+    ];
+    biomesList.forEach(b => {
+      planetTexturesRef.current[b] = generateProceduralBiomeCanvas(b);
+    });
+
+    // 2. Asynchronously load high-resolution authentic PNG textures using universal asset resolver
+    biomesList.forEach(sizeKey => {
+      const url = resolveAssetUrl(`textures/${sizeKey}.png`);
+      const img = new Image();
+      img.onload = () => {
+        if (img.complete && img.naturalWidth > 0) {
+          planetTexturesRef.current[sizeKey] = img;
+        }
+      };
+      img.onerror = (e) => {
+        console.warn(`[Texture Loader] Using procedural texture for [${sizeKey}]. PNG not reachable at ${url}:`, e);
+      };
+      img.src = url;
+    });
 
     const stars = [];
     for (let i = 0; i < 200; i++) {
@@ -379,7 +375,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       });
 
       // Planets
-      planets.forEach(planet => {
+      planets.forEach((planet, planetIndex) => {
         const faction = FACTIONS[planet.owner];
         const isSelected = selectedPlanetIds.includes(planet.id);
         const isHovered = hoveredPlanetId === planet.id;
@@ -685,53 +681,97 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           ctx.stroke();
         } else {
           // Standard planet, Turret, or Portal bodies
-          let pt = 'small';
-          if (planet.radius >= 20 && planet.radius < 35) pt = 'medium';
-          if (planet.radius >= 35) pt = 'large';
+          // Sequential biome assignment across all 12 distinct archetypes (round-robin, zero repetition)
+          const biomes = [
+            'small',       // 0: Lunar (craters)
+            'medium',      // 1: Continental (Earth)
+            'large',       // 2: Jovian (gas giant belts)
+            'ice',         // 3: Europa (cryo ice cracks)
+            'desert',      // 4: Martian (canyons & dunes)
+            'volcanic',    // 5: Volcanic (basalt & fissures)
+            'oceanic',     // 6: Oceanic (super-cyclones)
+            'toxic',       // 7: Venusian (sulfuric acid swirl)
+            'magma',       // 8: Magma (active lava lakes)
+            'crystalline', // 9: Crystalline (hexagonal lattice)
+            'neptune',     // 10: Ice Giant (supersonic winds & Dark Spot)
+            'barren',      // 11: Barren (Mercurian impact basins)
+          ];
           
-          const tex = planetTexturesRef.current[pt];
+          const seqIndex = planetIndex >= 0 ? planetIndex : 0;
+          const pt = biomes[seqIndex % biomes.length];
+          const tex = planetTexturesRef.current[pt] || planetTexturesRef.current['medium'] || planetTexturesRef.current['small'];
+          
+          // Golden angle dispersion (~137.5° = 2.399963 rad) for sequential non-repeating tilt
+          const baseAngle = seqIndex * 2.399963;
+          const rotDir = seqIndex % 2 === 0 ? 1 : -1;
+          const rotAngle = baseAngle + t * 0.018 * rotDir;
           
           ctx.save();
+          ctx.translate(planet.x, planet.y);
+
+          // Clip to circular planet sphere
           ctx.beginPath();
-          ctx.arc(planet.x, planet.y, planet.radius, 0, Math.PI * 2);
-          ctx.clip(); // Clip to the planet radius
+          ctx.arc(0, 0, planet.radius, 0, Math.PI * 2);
+          ctx.clip();
           
-             if (tex) {
-             // Draw the procedural texture
+          if (tex && (tex instanceof HTMLImageElement ? (tex.complete && tex.naturalWidth > 0) : true)) {
+             const tw = (tex as HTMLImageElement).naturalWidth || (tex as HTMLCanvasElement).width || 1024;
+             const th = (tex as HTMLImageElement).naturalHeight || (tex as HTMLCanvasElement).height || 1024;
+
+             // 1. Draw texture with unique axial rotation
+             ctx.save();
+             ctx.rotate(rotAngle);
              ctx.drawImage(
                 tex, 
-                0, 0, 512, 512, 
-                planet.x - planet.radius, planet.y - planet.radius, planet.radius * 2, planet.radius * 2
+                0, 0, tw, th, 
+                -planet.radius, -planet.radius, planet.radius * 2, planet.radius * 2
              );
+             ctx.restore();
              
-             // Tint faction color foolproof method
+             // 2. Tint faction color
              ctx.globalCompositeOperation = 'source-atop';
              ctx.globalAlpha = 0.55;
              ctx.fillStyle = faction.color;
-             ctx.fillRect(planet.x - planet.radius, planet.y - planet.radius, planet.radius * 2, planet.radius * 2);
+             ctx.fillRect(-planet.radius, -planet.radius, planet.radius * 2, planet.radius * 2);
              ctx.globalAlpha = 1.0;
              
-             // 3D Inner Shadow (Lighting depth)
+             // 3. 3D Inner Spherical Shadow (Consistent universal light from top-left)
              ctx.globalCompositeOperation = 'source-atop';
              const shadowGrad = ctx.createRadialGradient(
-               planet.x - planet.radius * 0.4, 
-               planet.y - planet.radius * 0.4, 
+               -planet.radius * 0.35, 
+               -planet.radius * 0.35, 
                0, 
-               planet.x, 
-               planet.y, 
+               0, 
+               0, 
                planet.radius
              );
-             shadowGrad.addColorStop(0, 'rgba(255, 255, 255, 0.15)');
-             shadowGrad.addColorStop(0.4, 'rgba(0, 0, 0, 0)');
-             shadowGrad.addColorStop(1, 'rgba(0, 0, 0, 0.6)');
+             shadowGrad.addColorStop(0, 'rgba(255, 255, 255, 0.22)');
+             shadowGrad.addColorStop(0.35, 'rgba(0, 0, 0, 0)');
+             shadowGrad.addColorStop(0.85, 'rgba(0, 0, 0, 0.45)');
+             shadowGrad.addColorStop(1, 'rgba(0, 0, 0, 0.75)');
              
              ctx.fillStyle = shadowGrad;
-             ctx.fillRect(planet.x - planet.radius, planet.y - planet.radius, planet.radius * 2, planet.radius * 2);
+             ctx.fillRect(-planet.radius, -planet.radius, planet.radius * 2, planet.radius * 2);
+
+             // 4. Subtle atmospheric limb glow
+             const atmoGrad = ctx.createRadialGradient(0, 0, planet.radius * 0.72, 0, 0, planet.radius);
+             atmoGrad.addColorStop(0, 'rgba(255, 255, 255, 0)');
+             atmoGrad.addColorStop(1, 'rgba(255, 255, 255, 0.16)');
+             ctx.fillStyle = atmoGrad;
+             ctx.fillRect(-planet.radius, -planet.radius, planet.radius * 2, planet.radius * 2);
 
              ctx.globalCompositeOperation = 'source-over';
           } else {
-             // Fallback
-             ctx.fillStyle = grad;
+             // 3D Spherical Fallback (Centered at (0, 0) in translated local coordinates)
+             const fallbackGrad = ctx.createRadialGradient(
+               -planet.radius * 0.35, -planet.radius * 0.35, 0,
+               0, 0, planet.radius
+             );
+             fallbackGrad.addColorStop(0, '#ffffff');
+             fallbackGrad.addColorStop(0.25, faction.color);
+             fallbackGrad.addColorStop(0.85, faction.color);
+             fallbackGrad.addColorStop(1, '#000000');
+             ctx.fillStyle = fallbackGrad;
              ctx.fill();
           }
           ctx.restore();
@@ -1250,58 +1290,73 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         }
       });
       
-      // Lasers
+      // Lasers (Hardware-accelerated glow without expensive shadowBlur)
       lasers.forEach(l => {
          const alpha = Math.max(0, Math.min(1, l.life / l.maxLife));
-         ctx.save();
-         ctx.strokeStyle = l.color;
-         ctx.lineWidth = 2.5;
-         ctx.globalAlpha = alpha;
-         ctx.shadowColor = l.color;
-         ctx.shadowBlur = 10;
-         ctx.beginPath();
+         if (alpha <= 0.01) return;
          const speed = Math.sqrt(l.vx*l.vx + l.vy*l.vy) || 1;
          const len = 14;
          const dx = (l.vx / speed) * len;
          const dy = (l.vy / speed) * len;
-         ctx.moveTo(l.x - dx, l.y - dy);
-         ctx.lineTo(l.x + dx, l.y + dy);
+         const startX = l.x - dx;
+         const startY = l.y - dy;
+         const endX = l.x + dx;
+         const endY = l.y + dy;
+
+         ctx.save();
+         // Pass 1: Outer glowing neon beam
+         ctx.strokeStyle = l.color;
+         ctx.lineWidth = 3.6;
+         ctx.globalAlpha = alpha * 0.45;
+         ctx.beginPath();
+         ctx.moveTo(startX, startY);
+         ctx.lineTo(endX, endY);
          ctx.stroke();
-         
-         // Specular white-hot core
+
+         // Pass 2: Specular white-hot core
          ctx.strokeStyle = '#ffffff';
-         ctx.lineWidth = 1.2;
-         ctx.shadowColor = '#ffffff';
-         ctx.shadowBlur = 4;
+         ctx.lineWidth = 1.4;
+         ctx.globalAlpha = alpha * 0.95;
+         ctx.beginPath();
+         ctx.moveTo(startX, startY);
+         ctx.lineTo(endX, endY);
          ctx.stroke();
          ctx.restore();
       });
 
-      // Sparks
+      // Sparks (Hardware-accelerated particle rendering without expensive shadowBlur)
       sparks.forEach(sp => {
         const alpha = Math.max(0, Math.min(1, sp.life / sp.maxLife));
-        ctx.globalAlpha = alpha;
+        if (alpha <= 0.01) return;
         
         if (sp.type === 'shockwave') {
-           ctx.strokeStyle = sp.color;
-           ctx.lineWidth = 4 * alpha;
-           ctx.shadowColor = sp.color;
-           ctx.shadowBlur = 10;
-           ctx.beginPath();
            const size = sp.size || 40;
-           // expands outward as it ages (alpha goes 1 -> 0, so 1 - alpha goes 0 -> 1)
+           ctx.save();
+           ctx.strokeStyle = sp.color;
+           ctx.lineWidth = 2.5 * alpha;
+           ctx.globalAlpha = alpha * 0.75;
+           ctx.beginPath();
            ctx.arc(sp.x, sp.y, Math.max(0.1, size * (1 - alpha)), 0, Math.PI * 2);
            ctx.stroke();
+           ctx.restore();
         } else {
-           ctx.fillStyle = sp.color;
-           ctx.shadowColor = sp.color;
-           ctx.shadowBlur = 5;
-           ctx.beginPath();
            const size = sp.size || 1.5;
-           ctx.arc(sp.x, sp.y, Math.max(0.1, size * alpha + 0.5), 0, Math.PI * 2);
+           const r = Math.max(0.1, size * alpha + 0.5);
+
+           // Pass 1: Soft colored outer glow
+           ctx.fillStyle = sp.color;
+           ctx.globalAlpha = alpha * 0.5;
+           ctx.beginPath();
+           ctx.arc(sp.x, sp.y, r * 1.8, 0, Math.PI * 2);
+           ctx.fill();
+
+           // Pass 2: White-hot core
+           ctx.fillStyle = '#ffffff';
+           ctx.globalAlpha = alpha * 0.9;
+           ctx.beginPath();
+           ctx.arc(sp.x, sp.y, r * 0.8, 0, Math.PI * 2);
            ctx.fill();
         }
-        ctx.shadowBlur = 0;
       });
       ctx.globalAlpha = 1.0;
 
@@ -1599,7 +1654,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     return () => {
       cancelAnimationFrame(animId);
     };
-  }, [planets, ships, sparks, lasers, screenShake, selectedPlanetIds, hoveredPlanetId, snappedPlanetId, dragStart, dragCurrent, isBoxSelecting, showTutorial]);
+  }, [planets, ships, sparks, lasers, screenShake, selectedPlanetIds, hoveredPlanetId, snappedPlanetId, dragStart, dragCurrent, isBoxSelecting, showTutorial, playerFaction]);
 
   return (
     <canvas

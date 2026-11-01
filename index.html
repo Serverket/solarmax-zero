@@ -12,6 +12,19 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>Solarmax Zero</title>
+    <script>
+      // Guarantee proper subpath base URI in sandboxed iframes (itch.io, CDN mirrors)
+      (function() {
+        if (typeof window !== 'undefined' && window.location) {
+          var p = window.location.pathname;
+          if (p && !p.endsWith('/') && !/\.[a-zA-Z0-9]+$/.test(p)) {
+            var b = document.createElement('base');
+            b.href = window.location.origin + p + '/';
+            document.head.appendChild(b);
+          }
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

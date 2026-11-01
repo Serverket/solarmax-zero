@@ -15,22 +15,24 @@ const BASE_SHIP_SPEED = 180;
 const SHIP_ORBIT_SPEED = 1.0;
 const LASER_SPEED = 500;
 const CELL_SIZE = 40; // For spatial hashing
+const GRID_OFFSET = 500;
 
-function getCell(x: number, y: number) {
-  return `${Math.floor(x / CELL_SIZE)},${Math.floor(y / CELL_SIZE)}`;
+function getCellKey(cx: number, cy: number): number {
+  return ((cx + GRID_OFFSET) << 12) | ((cy + GRID_OFFSET) & 0xFFF);
 }
 
 export function updatePhysics(
   state: PhysicsEngineState,
   dt: number,
-  _sendPercentage: number,
-  speedMultiplier: number
+  _sendPercentage: number = 0.5,
+  speedMultiplier: number = 1.0
 ): PhysicsEngineState {
   const sdt = dt * speedMultiplier;
-  const { planets, ships, sparks, lasers, stats } = state;
+  const { planets, ships, sparks, lasers } = state;
+  const stats = state.stats || { shipsDestroyed: 0, planetsCaptured: 0, shipsProduced: 0 };
 
   const nextPlanets = planets.map(p => ({ ...p }));
-  const nextSparks = [...sparks];
+  const nextSparks: Spark[] = [];
   const nextLasers: Laser[] = [];
   const nextShips: Ship[] = [];
   let destroyed = stats.shipsDestroyed;
@@ -39,15 +41,22 @@ export function updatePhysics(
   let screenShake = Math.max(0, state.screenShake - sdt * 15);
 
   const shipsByPlanet: Record<string, Ship[]> = {}; // for orbiting ships
-  const grid: Record<string, Ship[]> = {}; // for spatial hashing
+  const grid = new Map<number, Ship[]>(); // integer-keyed spatial hash grid (0 string allocations)
 
   // Populate grid for collision/flocking
-  ships.forEach(s => {
-    if (s.vx === 99999 || s.vx === 88888) return;
-    const key = getCell(s.x, s.y);
-    if (!grid[key]) grid[key] = [];
-    grid[key].push(s);
-  });
+  for (let i = 0; i < ships.length; i++) {
+    const s = ships[i];
+    if (s.vx === 99999 || s.vx === 88888) continue;
+    const cx = (s.x / CELL_SIZE) | 0;
+    const cy = (s.y / CELL_SIZE) | 0;
+    const key = getCellKey(cx, cy);
+    let cell = grid.get(key);
+    if (!cell) {
+      cell = [];
+      grid.set(key, cell);
+    }
+    cell.push(s);
+  }
 
   // Reset combat flag
   nextPlanets.forEach(p => { p.inCombat = false; });
@@ -137,23 +146,24 @@ export function updatePhysics(
       planet.turretCooldown = (planet.turretCooldown || 0) - sdt;
       const range = planet.turretRange || 200;
 
-      // Find enemies
-      const enemiesNear = ships.filter(s => {
-        if (s.vx === 99999 || s.vx === 88888 || s.faction === planet.owner) return false;
+      // Find closest enemy with zero allocations
+      let target: Ship | null = null;
+      let closestDistSq = range * range;
+
+      for (let i = 0; i < ships.length; i++) {
+        const s = ships[i];
+        if (s.vx === 99999 || s.vx === 88888 || s.faction === planet.owner) continue;
         const dx = s.x - planet.x;
         const dy = s.y - planet.y;
-        return (dx * dx + dy * dy) <= range * range;
-      });
+        const distSq = dx * dx + dy * dy;
+        if (distSq <= closestDistSq) {
+          closestDistSq = distSq;
+          target = s;
+        }
+      }
 
-      if (enemiesNear.length > 0) {
+      if (target) {
         planet.inCombat = true;
-        // Lock onto closest
-        enemiesNear.sort((a, b) => {
-          const d1 = (a.x - planet.x)**2 + (a.y - planet.y)**2;
-          const d2 = (b.x - planet.x)**2 + (b.y - planet.y)**2;
-          return d1 - d2;
-        });
-        const target = enemiesNear[0];
         planet.targetLockId = target.id;
 
         const tx = target.x;
@@ -186,7 +196,7 @@ export function updatePhysics(
               vy: Math.sin(planet.turretAngle) * LASER_SPEED * 1.5,
               targetId: target.id,
               color: FACTIONS[planet.owner].color,
-              life: 1.0, maxLife: 1.0
+              life: 0.45, maxLife: 0.45
             });
             
             screenShake = Math.min(screenShake + 1.5, 12);
@@ -316,29 +326,33 @@ export function updatePhysics(
            ship.orbitDirection = Math.random() > 0.5 ? 1 : -1;
         }
       } else {
-        // Separation logic using spatial grid (only check same cell and adjacent)
+        // Separation logic using spatial grid (only check same cell and adjacent with 0 string allocations)
         let sepX = 0, sepY = 0;
         let count = 0;
         
-        const cx = Math.floor(ship.x / CELL_SIZE);
-        const cy = Math.floor(ship.y / CELL_SIZE);
-        for(let i=-1; i<=1; i++) {
-          for(let j=-1; j<=1; j++) {
-            const key = `${cx+i},${cy+j}`;
-            if (grid[key]) {
-              grid[key].forEach(other => {
-                 if (other.id !== ship.id && other.state === 'transit' && other.faction === ship.faction && other.targetPlanetId === ship.targetPlanetId) {
-                    const odx = ship.x - other.x;
-                    const ody = ship.y - other.y;
-                    const odistSq = odx*odx + ody*ody;
-                    if (odistSq < 150 && odistSq > 0.1) { // 12 px approx
-                       const odist = Math.sqrt(odistSq);
-                       sepX += (odx / odist) * (15 - odist); // weight by closeness
-                       sepY += (ody / odist) * (15 - odist);
-                       count++;
-                    }
-                 }
-              });
+        const cx = (ship.x / CELL_SIZE) | 0;
+        const cy = (ship.y / CELL_SIZE) | 0;
+        for (let di = -1; di <= 1; di++) {
+          const rowKey = (cx + di + GRID_OFFSET) << 12;
+          for (let dj = -1; dj <= 1; dj++) {
+            const key = rowKey | ((cy + dj + GRID_OFFSET) & 0xFFF);
+            const cell = grid.get(key);
+            if (cell) {
+              const cellLen = cell.length;
+              for (let k = 0; k < cellLen; k++) {
+                const other = cell[k];
+                if (other.id !== ship.id && other.state === 'transit' && other.faction === ship.faction && other.targetPlanetId === ship.targetPlanetId) {
+                  const odx = ship.x - other.x;
+                  const ody = ship.y - other.y;
+                  const odistSq = odx * odx + ody * ody;
+                  if (odistSq < 150 && odistSq > 0.1) { // 12 px approx
+                    const odist = Math.sqrt(odistSq);
+                    sepX += (odx / odist) * (15 - odist); // weight by closeness
+                    sepY += (ody / odist) * (15 - odist);
+                    count++;
+                  }
+                }
+              }
             }
           }
         }
@@ -427,6 +441,12 @@ export function updatePhysics(
   });
 
   // 3. Lasers (True Projectiles) & Collision Detection
+  // Build fast O(1) lookup table for ships targeted by lasers
+  const shipMap = new Map<string, Ship>();
+  for (let i = 0; i < nextShips.length; i++) {
+     shipMap.set(nextShips[i].id, nextShips[i]);
+  }
+
   lasers.forEach(l => {
      l.life -= sdt;
      if (l.life <= 0) return;
@@ -437,7 +457,7 @@ export function updatePhysics(
      let hit = false;
      
      if (l.targetId) {
-        const targetShip = nextShips.find(s => s.id === l.targetId);
+        const targetShip = shipMap.get(l.targetId);
         if (targetShip && targetShip.vx !== 99999 && targetShip.vx !== 88888) {
            const dx = targetShip.x - l.x;
            const dy = targetShip.y - l.y;
@@ -453,6 +473,9 @@ export function updatePhysics(
               lvx += (tx - lvx) * sdt * 10;
               lvy += (ty - lvy) * sdt * 10;
            }
+        } else {
+           // Target destroyed or lost: dissipate rapidly to prevent cosmic clutter
+           l.life = Math.min(l.life, 0.08);
         }
      } else if (l.targetPlanetId) {
         const p = nextPlanets.find(pl => pl.id === l.targetPlanetId);
@@ -495,17 +518,38 @@ export function updatePhysics(
      
      const orbiters = shipsByPlanet[planetId];
      
-     // Faction groupings
-     const factions = [...new Set(orbiters.map(s => s.faction))];
-     if (factions.length > 1 || (factions.length > 0 && factions[0] !== planet.owner)) {
+     // Determine if contested with zero allocations
+     let hasCombat = false;
+     let firstFaction: FactionId | null = null;
+     for (let i = 0; i < orbiters.length; i++) {
+        const f = orbiters[i].faction;
+        if (!firstFaction) {
+           firstFaction = f;
+        } else if (firstFaction !== f) {
+           hasCombat = true;
+           break;
+        }
+     }
+     if (!hasCombat && firstFaction && firstFaction !== planet.owner) {
+        hasCombat = true;
+     }
+     if (hasCombat) {
         planet.inCombat = true;
      }
 
-     orbiters.forEach(ship => {
-        if (ship.vx === 99999 || ship.vx === 88888) return;
+     for (let i = 0; i < orbiters.length; i++) {
+        const ship = orbiters[i];
+        if (ship.vx === 99999 || ship.vx === 88888) continue;
         if ((ship.cooldown || 0) <= 0) {
-           // Find target
-           let enemy = orbiters.find(o => o.faction !== ship.faction && o.vx !== 99999 && o.vx !== 88888);
+           // Find target with zero closure allocations
+           let enemy: Ship | null = null;
+           for (let j = 0; j < orbiters.length; j++) {
+              const o = orbiters[j];
+              if (o.faction !== ship.faction && o.vx !== 99999 && o.vx !== 88888) {
+                 enemy = o;
+                 break;
+              }
+           }
            if (enemy) {
               ship.cooldown = 0.5 + Math.random() * 0.5;
               const angle = Math.atan2(enemy.y - ship.y, enemy.x - ship.x);
@@ -516,14 +560,12 @@ export function updatePhysics(
                  vy: Math.sin(angle) * LASER_SPEED,
                  targetId: enemy.id,
                  color: FACTIONS[ship.faction].color,
-                 life: 0.8, maxLife: 0.8
+                 life: 0.35, maxLife: 0.35
               });
               sound.playLaser();
            }
         }
-     });
-
-
+     }
    });
 
   // 5. Capture & Ship transfer
@@ -540,42 +582,48 @@ export function updatePhysics(
        for (let i = 0; i < absorbCount; i++) {
           let absorbed = false;
 
-          // 1. If owned and friendly orbiters, land them
+          // 1. If owned and friendly orbiters, land them (zero allocations)
           if (planet.owner !== 'neutral') {
-             const friendlies = orbiters.filter(s => s.faction === planet.owner && s.vx !== 99999 && s.vx !== 88888);
-             if (friendlies.length > 0) {
-                friendlies[0].vx = 88888; // mark as peacefully landed (silent)
-                planet.ships++;
-                absorbed = true;
-                
-                // Landing sparks (visual feedback for absorption)
-                for(let k=0; k<2; k++) {
-                   nextSparks.push({
-                      x: planet.x, y: planet.y,
-                      vx: (Math.random()-0.5)*40, vy: (Math.random()-0.5)*40,
-                      color: 'rgba(255, 255, 255, 0.8)',
-                      life: 0.2, maxLife: 0.2, size: 1.5
-                   });
+             for (let j = 0; j < orbiters.length; j++) {
+                const s = orbiters[j];
+                if (s.faction === planet.owner && s.vx !== 99999 && s.vx !== 88888) {
+                   s.vx = 88888; // mark as peacefully landed (silent)
+                   planet.ships++;
+                   absorbed = true;
+                   
+                   // Landing sparks (visual feedback for absorption)
+                   for (let k = 0; k < 2; k++) {
+                      nextSparks.push({
+                         x: planet.x, y: planet.y,
+                         vx: (Math.random() - 0.5) * 40, vy: (Math.random() - 0.5) * 40,
+                         color: 'rgba(255, 255, 255, 0.8)',
+                         life: 0.2, maxLife: 0.2, size: 1.5
+                      });
+                   }
+                   break;
                 }
              }
           }
 
-          // 2. Kamikaze enemies into garrison (1-for-1 trade)
+          // 2. Kamikaze enemies into garrison (1-for-1 trade) (zero allocations)
           if (!absorbed && planet.ships > 0) {
-             const enemies = orbiters.filter(s => s.faction !== planet.owner && s.vx !== 99999 && s.vx !== 88888);
-             if (enemies.length > 0) {
-                enemies[0].vx = 99999; // kamikaze (casualty stat stays intact)
-                planet.ships = Math.max(0, planet.ships - 1);
-                absorbed = true;
-                
-                // Kamikaze sparks
-                for(let k=0; k<3; k++) {
-                   nextSparks.push({
-                      x: planet.x, y: planet.y,
-                      vx: (Math.random()-0.5)*80, vy: (Math.random()-0.5)*80,
-                      color: FACTIONS[enemies[0].faction].color,
-                      life: 0.3, maxLife: 0.3, size: 2
-                   });
+             for (let j = 0; j < orbiters.length; j++) {
+                const s = orbiters[j];
+                if (s.faction !== planet.owner && s.vx !== 99999 && s.vx !== 88888) {
+                   s.vx = 99999; // kamikaze (casualty stat stays intact)
+                   planet.ships = Math.max(0, planet.ships - 1);
+                   absorbed = true;
+                   
+                   // Kamikaze sparks
+                   for (let k = 0; k < 3; k++) {
+                      nextSparks.push({
+                         x: planet.x, y: planet.y,
+                         vx: (Math.random() - 0.5) * 80, vy: (Math.random() - 0.5) * 80,
+                         color: FACTIONS[s.faction].color,
+                         life: 0.3, maxLife: 0.3, size: 2
+                      });
+                   }
+                   break;
                 }
              }
           }
@@ -584,112 +632,134 @@ export function updatePhysics(
        }
     }
 
-    const enemyFactions = [...new Set(orbiters.map(s => s.faction).filter(f => f !== planet.owner))];
-    if (planet.ships <= 0 && enemyFactions.length > 0) {
-       // Only allow capture if only one enemy faction is present, or one is clearly dominating (simplified: must be 1)
-       if (enemyFactions.length === 1) {
-           const capturingF = enemyFactions[0];
-           if (planet.capturingFaction !== capturingF) {
-              planet.capturingFaction = capturingF;
-              planet.captureProgress = 0;
-              if (planet.owner !== 'neutral') {
-                 planet.owner = 'neutral';
-              }
-           }
-           
-           const capOrbiters = orbiters.filter(s => s.faction === capturingF && s.vx !== 99999 && s.vx !== 88888);
-           if (capOrbiters.length > 0) {
-              const capMult = planet.type === 'bfg' ? 0.025 : 0.05;
-              const capSpeed = capOrbiters.length * capMult * sdt;
-              planet.captureProgress += capSpeed;
-              if (planet.captureProgress >= 1) {
-                 planet.owner = capturingF;
-                 planet.capturingFaction = null;
-                 planet.captureProgress = 0;
-                 if (planet.type === 'bfg') {
-                    planet.bfgCharge = 0;
-                    planet.bfgCooldown = 0;
-                 }
-                 captured++;
-                 sound.playCapture();
-                 screenShake = Math.min(screenShake + (planet.type === 'bfg' ? 8 : 4), 18);
-                 for(let i=0; i<20; i++) {
-                     const a = Math.random() * Math.PI*2;
-                     const sp = 40 + Math.random() * 60;
-                     nextSparks.push({
-                        x: planet.x, y: planet.y,
-                        vx: Math.cos(a)*sp, vy: Math.sin(a)*sp,
-                        color: FACTIONS[planet.owner].color,
-                        life: 0.6, maxLife: 0.6, size: 2.5
-                     });
-                 }
-                 
-                 // WARP ALL SHIPS IMMEDIATELY AFTER CAPTURE
-                 if (planet.type === 'portal' && planet.portalTargetId) {
-                    const destPortal = nextPlanets.find(p => p.id === planet.portalTargetId);
-                    if (destPortal) {
-                       const capOrbiters = orbiters.filter(s => s.faction === capturingF && s.vx !== 99999 && s.vx !== 88888);
-                       capOrbiters.forEach(s => {
-                          s.x = destPortal.x;
-                          s.y = destPortal.y;
-                          s.targetPlanetId = destPortal.id;
-                          s.orbitRadius = destPortal.radius + 15 + Math.random() * 15;
-                          s.orbitAngle = Math.random() * Math.PI * 2;
-                          
-                          for(let i=0; i<3; i++) {
-                             nextSparks.push({
-                                x: destPortal.x, y: destPortal.y,
-                                vx: (Math.random()-0.5)*150, vy: (Math.random()-0.5)*150,
-                                color: '#00ffff', life: 0.4, maxLife: 0.4, size: 3
-                             });
-                          }
-                       });
-                       
-                       // Shockwaves at both ends
-                       nextSparks.push({
-                          x: planet.x, y: planet.y, vx: 0, vy: 0,
-                          color: '#00ffff', life: 0.6, maxLife: 0.6, size: 40, type: 'shockwave'
-                       });
-                       nextSparks.push({
-                          x: destPortal.x, y: destPortal.y, vx: 0, vy: 0,
-                          color: '#00ffff', life: 0.6, maxLife: 0.6, size: 40, type: 'shockwave'
-                       });
-                    }
-                 }
-              }
-           }
-       } else {
-           // Contested: progress decays (2x faster for BFG)
-           const decaySpeed = planet.type === 'bfg' ? 0.2 : 0.1;
-           planet.captureProgress = Math.max(0, planet.captureProgress - sdt * decaySpeed);
-           if (planet.captureProgress === 0) planet.capturingFaction = null;
+    // Determine enemy factions and single dominant capturing faction with zero allocations
+    let capturingF: FactionId | null = null;
+    let multipleEnemyFactions = false;
+    let capOrbitersCount = 0;
+
+    for (let i = 0; i < orbiters.length; i++) {
+       const s = orbiters[i];
+       if (s.vx !== 99999 && s.vx !== 88888 && s.faction !== planet.owner) {
+          if (!capturingF) {
+             capturingF = s.faction;
+             capOrbitersCount = 1;
+          } else if (capturingF === s.faction) {
+             capOrbitersCount++;
+          } else {
+             multipleEnemyFactions = true;
+          }
+       }
+    }
+
+    if (planet.ships <= 0 && capturingF && !multipleEnemyFactions) {
+       if (planet.capturingFaction !== capturingF) {
+          planet.capturingFaction = capturingF;
+          planet.captureProgress = 0;
+          if (planet.owner !== 'neutral') {
+             planet.owner = 'neutral';
+          }
+       }
+       
+       if (capOrbitersCount > 0) {
+          const capMult = planet.type === 'bfg' ? 0.025 : 0.05;
+          const capSpeed = capOrbitersCount * capMult * sdt;
+          planet.captureProgress += capSpeed;
+          if (planet.captureProgress >= 1) {
+             planet.owner = capturingF;
+             planet.capturingFaction = null;
+             planet.captureProgress = 0;
+             if (planet.type === 'bfg') {
+                planet.bfgCharge = 0;
+                planet.bfgCooldown = 0;
+             }
+             captured++;
+             sound.playCapture();
+             screenShake = Math.min(screenShake + (planet.type === 'bfg' ? 8 : 4), 18);
+             for (let i = 0; i < 20; i++) {
+                const a = Math.random() * Math.PI * 2;
+                const sp = 40 + Math.random() * 60;
+                nextSparks.push({
+                   x: planet.x, y: planet.y,
+                   vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+                   color: FACTIONS[planet.owner].color,
+                   life: 0.6, maxLife: 0.6, size: 2.5
+                });
+             }
+             
+             // WARP ALL SHIPS IMMEDIATELY AFTER CAPTURE
+             if (planet.type === 'portal' && planet.portalTargetId) {
+                const destPortal = nextPlanets.find(p => p.id === planet.portalTargetId);
+                if (destPortal) {
+                   for (let i = 0; i < orbiters.length; i++) {
+                      const s = orbiters[i];
+                      if (s.faction === capturingF && s.vx !== 99999 && s.vx !== 88888) {
+                         s.x = destPortal.x;
+                         s.y = destPortal.y;
+                         s.targetPlanetId = destPortal.id;
+                         s.orbitRadius = destPortal.radius + 15 + Math.random() * 15;
+                         s.orbitAngle = Math.random() * Math.PI * 2;
+                         
+                         for (let k = 0; k < 3; k++) {
+                            nextSparks.push({
+                               x: destPortal.x, y: destPortal.y,
+                               vx: (Math.random() - 0.5) * 150, vy: (Math.random() - 0.5) * 150,
+                               color: '#00ffff', life: 0.4, maxLife: 0.4, size: 3
+                            });
+                         }
+                      }
+                   }
+                   
+                   // Shockwaves at both ends
+                   nextSparks.push({
+                      x: planet.x, y: planet.y, vx: 0, vy: 0,
+                      color: '#00ffff', life: 0.6, maxLife: 0.6, size: 40, type: 'shockwave'
+                   });
+                   nextSparks.push({
+                      x: destPortal.x, y: destPortal.y, vx: 0, vy: 0,
+                      color: '#00ffff', life: 0.6, maxLife: 0.6, size: 40, type: 'shockwave'
+                   });
+                }
+             }
+          }
        }
     } else {
-       // Decay capture progress if no capturing ships or defenders respawned (2x faster for BFG)
+       // Decay capture progress if no capturing ships or multiple enemies (2x faster for BFG)
        const decaySpeed = planet.type === 'bfg' ? 0.2 : 0.1;
        planet.captureProgress = Math.max(0, planet.captureProgress - sdt * decaySpeed);
        if (planet.captureProgress === 0) planet.capturingFaction = null;
     }
   });
 
-  // Update Sparks
-  const allSparks = sparks.concat(nextSparks).filter(sp => {
+  // Update existing Sparks and merge with newly generated sparks
+  const updatedSparks: Spark[] = [];
+  sparks.forEach(sp => {
     sp.life -= sdt;
     if (sp.life > 0) {
       sp.x += sp.vx * sdt;
       sp.y += sp.vy * sdt;
       sp.vx *= 0.9;
       sp.vy *= 0.9;
-      return true;
+      updatedSparks.push(sp);
     }
-    return false;
   });
+
+  // Limit total sparks and lasers to ensure silky-smooth 60+ FPS
+  const MAX_SPARKS = 120;
+  const combinedSparks = updatedSparks.concat(nextSparks);
+  const allSparks = combinedSparks.length > MAX_SPARKS 
+    ? combinedSparks.slice(combinedSparks.length - MAX_SPARKS) 
+    : combinedSparks;
+
+  const MAX_LASERS = 50;
+  const allLasers = nextLasers.length > MAX_LASERS
+    ? nextLasers.slice(nextLasers.length - MAX_LASERS)
+    : nextLasers;
 
   return {
     planets: nextPlanets,
     ships: nextShips.filter(s => s.vx !== 99999 && s.vx !== 88888),
     sparks: allSparks,
-    lasers: nextLasers,
+    lasers: allLasers,
     screenShake,
     stats: {
       ...stats,
@@ -941,6 +1011,7 @@ export function runAIDecisions(
 
     // Aggressive AI: attack with any planet that has advantage
     aiPlanets.forEach(source => {
+      if (source.type === 'bfg') return; // BFG superweapons use dedicated strategic firing logic below
       if (source.ships < 3) return;
       if (Math.random() > 0.3) return; // Not every tick
 
