@@ -79,6 +79,7 @@ function App() {
   const [currentLevel, setCurrentLevel] = useState<LevelConfig>(initialLevel);
   const [physicsState, setPhysicsState] = useState<PhysicsEngineState>(() => initLevel(initialLevel));
   const [selectedPlanetIds, setSelectedPlanetIds] = useState<string[]>([]);
+  const [showTutorial, setShowTutorial] = useState<boolean>(() => initialLevel.id === 'lvl1');
   const [sendPercentage, setSendPercentage] = useState(1.0);
   const [speedMultiplier, setSpeedMultiplier] = useState(1);
   const [isPaused, setIsPaused] = useState(false);
@@ -304,6 +305,11 @@ function App() {
       lastTimeRef.current = time;
 
       setPhysicsState(prev => {
+        if (showTutorial) {
+          // Pause simulation while first mission tutorial is active
+          return prev;
+        }
+
         let next = updatePhysics(prev, dt, sendPercentage, speedMultiplier);
 
         const isMultiplayer = gameState === 'multiplayer_playing';
@@ -434,12 +440,16 @@ function App() {
 
     animId = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animId);
-  }, [gameState, isPaused, speedMultiplier, sendPercentage, currentLevel.id]);
+  }, [gameState, isPaused, speedMultiplier, sendPercentage, currentLevel.id, showTutorial]);
 
   // Keyboard controls
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (gameState !== 'playing' && gameState !== 'multiplayer_playing') return;
+
+      if (showTutorial) {
+        setShowTutorial(false);
+      }
 
       if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') {
         setSendPercentage(prev => Math.max(0, prev - 0.1));
@@ -478,6 +488,7 @@ function App() {
     setShowLevelSelect(false);
     setShowVictory(false);
     setIsPaused(false);
+    setShowTutorial(level.id === 'lvl1');
     music.init();
   };
 
@@ -502,6 +513,7 @@ function App() {
     setGameState('playing');
     setShowVictory(false);
     setIsPaused(false);
+    setShowTutorial(currentLevel.id === 'lvl1');
   };
 
   const handleNextLevel = () => {
@@ -577,6 +589,8 @@ function App() {
               onSelectPlanets={setSelectedPlanetIds}
               onLaunchFleets={handleLaunchFleets}
               playerFaction={gameState === 'multiplayer_playing' ? lobbyManagerRef.current!.myFaction : 'player'}
+              showTutorial={showTutorial}
+              onDismissTutorial={() => setShowTutorial(false)}
             />
           </div>
           {!isHideHud && (

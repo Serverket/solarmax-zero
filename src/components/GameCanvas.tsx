@@ -17,6 +17,8 @@ interface GameCanvasProps {
   onEditorPointerMove?: (x: number, y: number) => void;
   onEditorPointerUp?: () => void;
   playerFaction?: FactionId;
+  showTutorial?: boolean;
+  onDismissTutorial?: () => void;
 }
 
 export const GameCanvas: React.FC<GameCanvasProps> = ({
@@ -33,8 +35,11 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   onEditorPointerMove,
   onEditorPointerUp,
   playerFaction = 'player',
+  showTutorial = false,
+  onDismissTutorial,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const handPathRef = useRef<Path2D | null>(null);
 
   const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
   const [dragCurrent, setDragCurrent] = useState<{ x: number; y: number } | null>(null);
@@ -137,6 +142,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
       });
     }
     starsRef.current = stars;
+    handPathRef.current = new Path2D("M 10 0 C 12 0 13 1 13 3 L 13 14 C 14 13 15 12 16.5 12 C 18 12 19 13 19 15 L 19 16 C 19.5 15.5 20.5 15 21.5 15 C 23 15 24 16 24 17.5 L 24 19 C 24.5 18.5 25.5 18 26.5 18 C 28 18 29 19 29 20.5 L 29 28 C 29 36 22 42 14 42 C 7 42 2 37 2 31 L 2 27 C 2 24.5 4 23 6 23 C 7.5 23 9 24 10 25 L 10 3 C 10 1 11 0 13 0 Z");
   }, []);
 
   const getCanvasCoords = useCallback((e: React.MouseEvent | React.TouchEvent) => {
@@ -207,6 +213,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
   }, [planets]);
 
   const handlePointerDown = (e: React.MouseEvent | React.TouchEvent) => {
+    if (showTutorial && onDismissTutorial) {
+      onDismissTutorial();
+    }
     const coords = getCanvasCoords(e);
     const clickedPlanet = getPlanetAt(coords.x, coords.y, 8);
 
@@ -1355,6 +1364,230 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         }
       }
 
+      // Interactive Tutorial Overlay for Mission 1 (Simulated Drag-and-Drop Loop)
+      if (showTutorial && planets.length >= 2) {
+        const startPlanet = planets.find(p => p.owner === playerFaction) || planets[0];
+        const targetPlanet = planets.find(p => p.owner !== playerFaction) || planets[1];
+
+        const T = 3.8; // loop period in seconds
+        const cycle = t % T;
+
+        ctx.save();
+
+        // 1. Calculate Hand Position & State across the 3.8s loop
+        let hx = startPlanet.x;
+        let hy = startPlanet.y;
+        let handAlpha = 1.0;
+        let isPressed = false;
+        let showLine = false;
+        let showLaunch = false;
+
+        if (cycle < 0.5) {
+          // Phase 1: Appear & Hover over player planet
+          hx = startPlanet.x;
+          hy = startPlanet.y;
+          handAlpha = Math.min(1, cycle / 0.35);
+          isPressed = false;
+        } else if (cycle < 0.9) {
+          // Phase 2: Press down on player planet
+          hx = startPlanet.x;
+          hy = startPlanet.y;
+          handAlpha = 1.0;
+          isPressed = true;
+
+          // Touch ripple expanding outward
+          const ripFrac = (cycle - 0.5) / 0.4;
+          ctx.strokeStyle = '#00f0ff';
+          ctx.lineWidth = (1 - ripFrac) * 3;
+          ctx.globalAlpha = (1 - ripFrac) * 0.8;
+          ctx.beginPath();
+          ctx.arc(startPlanet.x, startPlanet.y, startPlanet.radius * (0.8 + ripFrac * 0.8), 0, Math.PI * 2);
+          ctx.stroke();
+
+          // Selection ring on startPlanet
+          ctx.strokeStyle = '#00f0ff';
+          ctx.lineWidth = 2;
+          ctx.shadowColor = '#00f0ff';
+          ctx.shadowBlur = 10;
+          ctx.globalAlpha = 0.9;
+          ctx.beginPath();
+          ctx.arc(startPlanet.x, startPlanet.y, startPlanet.radius + 6, 0, Math.PI * 2);
+          ctx.stroke();
+        } else if (cycle < 2.3) {
+          // Phase 3: Dragging across towards target planet
+          const dragFrac = (cycle - 0.9) / 1.4;
+          const ease = 0.5 - 0.5 * Math.cos(dragFrac * Math.PI);
+          hx = startPlanet.x + (targetPlanet.x - startPlanet.x) * ease;
+          hy = startPlanet.y + (targetPlanet.y - startPlanet.y) * ease - Math.sin(ease * Math.PI) * 20;
+          handAlpha = 1.0;
+          isPressed = true;
+          showLine = true;
+
+          // Keep selection ring on startPlanet while dragging
+          ctx.strokeStyle = '#00f0ff';
+          ctx.lineWidth = 2;
+          ctx.shadowColor = '#00f0ff';
+          ctx.shadowBlur = 10;
+          ctx.globalAlpha = 0.85;
+          ctx.beginPath();
+          ctx.arc(startPlanet.x, startPlanet.y, startPlanet.radius + 6, 0, Math.PI * 2);
+          ctx.stroke();
+        } else if (cycle < 2.7) {
+          // Phase 4: Target lock & Snap on target planet
+          hx = targetPlanet.x;
+          hy = targetPlanet.y;
+          handAlpha = 1.0;
+          isPressed = false;
+
+          // Target snap bracket pulse
+          const snapPulse = 0.5 + 0.5 * Math.sin(t * 16);
+          ctx.strokeStyle = '#00f0ff';
+          ctx.lineWidth = 2.5;
+          ctx.shadowColor = '#00f0ff';
+          ctx.shadowBlur = 14 + snapPulse * 6;
+          ctx.globalAlpha = 0.9;
+          ctx.beginPath();
+          ctx.arc(targetPlanet.x, targetPlanet.y, targetPlanet.radius + 10 + snapPulse * 3, 0, Math.PI * 2);
+          ctx.stroke();
+
+          // Release ripple on target
+          const relFrac = (cycle - 2.3) / 0.4;
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = (1 - relFrac) * 2.5;
+          ctx.globalAlpha = (1 - relFrac) * 0.75;
+          ctx.beginPath();
+          ctx.arc(targetPlanet.x, targetPlanet.y, targetPlanet.radius * (0.8 + relFrac * 0.7), 0, Math.PI * 2);
+          ctx.stroke();
+        } else if (cycle < 3.5) {
+          // Phase 5: Simulated unit fleet movement (ships traveling along path)
+          hx = targetPlanet.x;
+          hy = targetPlanet.y;
+          handAlpha = Math.max(0, 1 - (cycle - 2.7) / 0.4);
+          isPressed = false;
+          showLaunch = true;
+        } else {
+          // Phase 6: Reset
+          handAlpha = 0;
+        }
+
+        // 2. Render Trajectory Line (Authentic Solarmax dashed line + arrow)
+        if (showLine) {
+          ctx.save();
+          ctx.shadowColor = '#00f0ff';
+          ctx.shadowBlur = 10;
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2.5;
+          ctx.setLineDash([10, 8]);
+          ctx.lineDashOffset = -t * 35;
+          ctx.globalAlpha = 0.9;
+          ctx.beginPath();
+          ctx.moveTo(startPlanet.x, startPlanet.y);
+          ctx.lineTo(hx, hy);
+          ctx.stroke();
+
+          const dx = hx - startPlanet.x;
+          const dy = hy - startPlanet.y;
+          const angle = Math.atan2(dy, dx);
+          ctx.translate(hx, hy);
+          ctx.rotate(angle);
+          ctx.fillStyle = '#00f0ff';
+          ctx.beginPath();
+          ctx.moveTo(-12, -6);
+          ctx.lineTo(0, 0);
+          ctx.lineTo(-12, 6);
+          ctx.fill();
+          ctx.restore();
+        }
+
+        // 3. Render Simulated Fleet Travel (Ghost fighters moving between planets)
+        if (showLaunch) {
+          const streamFrac = (cycle - 2.7) / 0.8;
+          const angle = Math.atan2(targetPlanet.y - startPlanet.y, targetPlanet.x - startPlanet.x);
+          for (let i = 0; i < 8; i++) {
+            const shipProg = streamFrac * 1.6 - i * 0.1;
+            if (shipProg >= 0 && shipProg <= 1) {
+              const sx = startPlanet.x + (targetPlanet.x - startPlanet.x) * shipProg;
+              const sy = startPlanet.y + (targetPlanet.y - startPlanet.y) * shipProg;
+              ctx.save();
+              ctx.translate(sx, sy);
+              ctx.rotate(angle);
+              ctx.fillStyle = '#00f0ff';
+              ctx.shadowColor = '#00f0ff';
+              ctx.shadowBlur = 8;
+              ctx.globalAlpha = Math.min(1, Math.sin(shipProg * Math.PI));
+              ctx.beginPath();
+              ctx.moveTo(8, 0);
+              ctx.lineTo(-4, 4);
+              ctx.lineTo(-2, 0);
+              ctx.lineTo(-4, -4);
+              ctx.closePath();
+              ctx.fill();
+              ctx.restore();
+            }
+          }
+        }
+
+        // 4. Render Pointer Hand
+        if (handAlpha > 0 && handPathRef.current) {
+          ctx.save();
+          ctx.translate(hx, hy);
+          const handScale = (isPressed ? 0.86 : 1.0) * 1.15;
+          ctx.scale(handScale, handScale);
+          ctx.translate(-11.5, 0); // Align fingertip to center
+          ctx.globalAlpha = handAlpha;
+          ctx.shadowColor = '#00f0ff';
+          ctx.shadowBlur = 14;
+          ctx.fillStyle = '#ffffff';
+          ctx.fill(handPathRef.current);
+          ctx.strokeStyle = '#00f0ff';
+          ctx.lineWidth = 2;
+          ctx.stroke(handPathRef.current);
+          ctx.restore();
+        }
+
+        // 5. Centered Instructional Badge
+        const badgeX = (startPlanet.x + targetPlanet.x) / 2;
+        const badgeY = Math.min(startPlanet.y, targetPlanet.y) - 130;
+        const badgeW = 340;
+        const badgeH = 64;
+
+        ctx.save();
+        ctx.translate(badgeX, badgeY);
+
+        // Glassmorphism background
+        ctx.fillStyle = 'rgba(8, 14, 26, 0.85)';
+        ctx.shadowColor = '#00f0ff';
+        ctx.shadowBlur = 16;
+        ctx.beginPath();
+        ctx.roundRect(-badgeW / 2, -badgeH / 2, badgeW, badgeH, 10);
+        ctx.fill();
+
+        ctx.strokeStyle = '#00f0ff';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // Title
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 15px Orbitron, Inter, sans-serif';
+        ctx.shadowColor = '#00f0ff';
+        ctx.shadowBlur = 10;
+        ctx.fillText('DRAG & DROP TO ATTACK', 0, -10);
+
+        // Subtitle (breathing pulse)
+        const pulse = 0.65 + 0.35 * Math.sin(t * 4);
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '600 11px Inter, sans-serif';
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = pulse;
+        ctx.fillText('Tap or click anywhere to begin', 0, 14);
+
+        ctx.restore();
+
+        ctx.restore();
+      }
+
       // Removed elliptical edge vignette as requested by user to eliminate framed effect
 
       ctx.restore(); // restore from screen shake
@@ -1366,7 +1599,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     return () => {
       cancelAnimationFrame(animId);
     };
-  }, [planets, ships, sparks, lasers, screenShake, selectedPlanetIds, hoveredPlanetId, snappedPlanetId, dragStart, dragCurrent, isBoxSelecting]);
+  }, [planets, ships, sparks, lasers, screenShake, selectedPlanetIds, hoveredPlanetId, snappedPlanetId, dragStart, dragCurrent, isBoxSelecting, showTutorial]);
 
   return (
     <canvas
