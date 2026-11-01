@@ -244,6 +244,7 @@ export const LevelSelectModal: React.FC<LevelSelectModalProps> = ({
                           {p.type === 'portal' && <circle cx={p.x} cy={p.y} r={p.radius + 15} stroke="#88ddff" strokeWidth="4" fill="none" strokeDasharray="5 5" />}
                           {p.type === 'turret' && <circle cx={p.x} cy={p.y} r={p.radius + 10} stroke="#ff5555" strokeWidth="4" fill="none" />}
                           {p.type === 'mothership' && <circle cx={p.x} cy={p.y} r={p.radius + 20} stroke="#ffaa00" strokeWidth="6" fill="none" />}
+                          {p.type === 'bfg' && <circle cx={p.x} cy={p.y} r={p.radius + 14} stroke="#00ff88" strokeWidth="4" fill="none" strokeDasharray="8 4" />}
                         </g>
                       ))}
                     </svg>

@@ -43,7 +43,7 @@ export function updatePhysics(
 
   // Populate grid for collision/flocking
   ships.forEach(s => {
-    if (s.vx === 99999) return;
+    if (s.vx === 99999 || s.vx === 88888) return;
     const key = getCell(s.x, s.y);
     if (!grid[key]) grid[key] = [];
     grid[key].push(s);
@@ -66,11 +66,60 @@ export function updatePhysics(
   const isMothershipLevel = nextPlanets.some(p => p.type === 'mothership');
   const globalShipLimit = isMothershipLevel ? 1000 : 700;
 
-  // 1. Planet production & turrets
+  // 1. Planet production, BFG superweapon & turrets
   nextPlanets.forEach(planet => {
     planet.pulsePhase += sdt * 2;
 
-    if (planet.owner !== 'neutral' && planet.type !== 'turret' && planet.type !== 'portal') {
+    // Decrement EMP timer if active (disables production and defense)
+    if (planet.empTimer && planet.empTimer > 0) {
+      planet.empTimer = Math.max(0, planet.empTimer - sdt);
+    }
+    const isEmpActive = (planet.empTimer || 0) > 0;
+
+    // BFG Superweapon Charging, Warmup & Cooldown
+    if (planet.type === 'bfg') {
+      if (planet.bfgWarmupTimer && planet.bfgWarmupTimer > 0) {
+        planet.bfgWarmupTimer = Math.max(0, planet.bfgWarmupTimer - sdt);
+        if (planet.bfgWarmupTimer === 0 && planet.bfgWarmupTarget) {
+          const targetPlanet = nextPlanets.find(p => p.id === planet.bfgWarmupTarget?.targetPlanetId);
+          if (targetPlanet) {
+            const { inFlightVaporized } = executeBfgFire(planet, targetPlanet, ships, nextSparks);
+            destroyed += inFlightVaporized;
+            screenShake = Math.min(screenShake + 16, 22);
+          }
+          planet.bfgWarmupTarget = undefined;
+          planet.bfgWarmupTimer = undefined;
+        }
+      }
+
+      if (planet.bfgFiringTimer && planet.bfgFiringTimer > 0) {
+        planet.bfgFiringTimer = Math.max(0, planet.bfgFiringTimer - sdt);
+        if (planet.bfgFiringTimer === 0) {
+          planet.bfgBeamTarget = undefined;
+        }
+      }
+
+      if (planet.owner !== 'neutral') {
+        if (planet.bfgCooldown && planet.bfgCooldown > 0) {
+          planet.bfgCooldown = Math.max(0, planet.bfgCooldown - sdt);
+        } else if (!planet.inCombat && (!planet.bfgWarmupTimer || planet.bfgWarmupTimer <= 0)) {
+          const oldCharge = planet.bfgCharge || 0;
+          let newCharge = Math.min(18, oldCharge + sdt);
+          if (newCharge >= 17.95) newCharge = 18;
+          planet.bfgCharge = newCharge;
+          if (oldCharge < 18 && newCharge >= 18) {
+            sound.playBfgReady();
+          }
+        }
+      } else {
+        planet.bfgCharge = 0;
+        planet.bfgCooldown = 0;
+        planet.bfgWarmupTimer = undefined;
+        planet.bfgWarmupTarget = undefined;
+      }
+    }
+
+    if (planet.owner !== 'neutral' && planet.type !== 'turret' && planet.type !== 'portal' && planet.type !== 'bfg' && !isEmpActive) {
       const isMothership = planet.type === 'mothership';
       const prodMult = isMothership ? 2.5 : 1;
       
@@ -84,13 +133,13 @@ export function updatePhysics(
       }
     }
 
-    if (planet.type === 'turret' && planet.owner !== 'neutral') {
+    if (planet.type === 'turret' && planet.owner !== 'neutral' && !isEmpActive) {
       planet.turretCooldown = (planet.turretCooldown || 0) - sdt;
       const range = planet.turretRange || 200;
 
       // Find enemies
       const enemiesNear = ships.filter(s => {
-        if (s.vx === 99999 || s.faction === planet.owner) return false;
+        if (s.vx === 99999 || s.vx === 88888 || s.faction === planet.owner) return false;
         const dx = s.x - planet.x;
         const dy = s.y - planet.y;
         return (dx * dx + dy * dy) <= range * range;
@@ -167,6 +216,10 @@ export function updatePhysics(
 
   // 2. Ship movement
   ships.forEach(ship => {
+    if (ship.vx === 88888) {
+      // Peaceful garrison landing - completely silent, no sound or explosion
+      return;
+    }
     if (ship.vx === 99999) {
        destroyed++;
        sound.playLaser(); // or small boom
@@ -385,7 +438,7 @@ export function updatePhysics(
      
      if (l.targetId) {
         const targetShip = nextShips.find(s => s.id === l.targetId);
-        if (targetShip && targetShip.vx !== 99999) {
+        if (targetShip && targetShip.vx !== 99999 && targetShip.vx !== 88888) {
            const dx = targetShip.x - l.x;
            const dy = targetShip.y - l.y;
            const dist = Math.sqrt(dx*dx + dy*dy);
@@ -449,10 +502,10 @@ export function updatePhysics(
      }
 
      orbiters.forEach(ship => {
-        if (ship.vx === 99999) return;
+        if (ship.vx === 99999 || ship.vx === 88888) return;
         if ((ship.cooldown || 0) <= 0) {
            // Find target
-           let enemy = orbiters.find(o => o.faction !== ship.faction && o.vx !== 99999);
+           let enemy = orbiters.find(o => o.faction !== ship.faction && o.vx !== 99999 && o.vx !== 88888);
            if (enemy) {
               ship.cooldown = 0.5 + Math.random() * 0.5;
               const angle = Math.atan2(enemy.y - ship.y, enemy.x - ship.x);
@@ -489,10 +542,9 @@ export function updatePhysics(
 
           // 1. If owned and friendly orbiters, land them
           if (planet.owner !== 'neutral') {
-             const friendlies = orbiters.filter(s => s.faction === planet.owner && s.vx !== 99999);
+             const friendlies = orbiters.filter(s => s.faction === planet.owner && s.vx !== 99999 && s.vx !== 88888);
              if (friendlies.length > 0) {
-                friendlies[0].vx = 99999; // mark for deletion
-                destroyed--; // refund the casualty stat
+                friendlies[0].vx = 88888; // mark as peacefully landed (silent)
                 planet.ships++;
                 absorbed = true;
                 
@@ -510,7 +562,7 @@ export function updatePhysics(
 
           // 2. Kamikaze enemies into garrison (1-for-1 trade)
           if (!absorbed && planet.ships > 0) {
-             const enemies = orbiters.filter(s => s.faction !== planet.owner && s.vx !== 99999);
+             const enemies = orbiters.filter(s => s.faction !== planet.owner && s.vx !== 99999 && s.vx !== 88888);
              if (enemies.length > 0) {
                 enemies[0].vx = 99999; // kamikaze (casualty stat stays intact)
                 planet.ships = Math.max(0, planet.ships - 1);
@@ -545,17 +597,22 @@ export function updatePhysics(
               }
            }
            
-           const capOrbiters = orbiters.filter(s => s.faction === capturingF && s.vx !== 99999);
+           const capOrbiters = orbiters.filter(s => s.faction === capturingF && s.vx !== 99999 && s.vx !== 88888);
            if (capOrbiters.length > 0) {
-              const capSpeed = capOrbiters.length * 0.05 * sdt;
+              const capMult = planet.type === 'bfg' ? 0.025 : 0.05;
+              const capSpeed = capOrbiters.length * capMult * sdt;
               planet.captureProgress += capSpeed;
               if (planet.captureProgress >= 1) {
                  planet.owner = capturingF;
                  planet.capturingFaction = null;
                  planet.captureProgress = 0;
+                 if (planet.type === 'bfg') {
+                    planet.bfgCharge = 0;
+                    planet.bfgCooldown = 0;
+                 }
                  captured++;
                  sound.playCapture();
-                 screenShake = Math.min(screenShake + 4, 15);
+                 screenShake = Math.min(screenShake + (planet.type === 'bfg' ? 8 : 4), 18);
                  for(let i=0; i<20; i++) {
                      const a = Math.random() * Math.PI*2;
                      const sp = 40 + Math.random() * 60;
@@ -571,7 +628,7 @@ export function updatePhysics(
                  if (planet.type === 'portal' && planet.portalTargetId) {
                     const destPortal = nextPlanets.find(p => p.id === planet.portalTargetId);
                     if (destPortal) {
-                       const capOrbiters = orbiters.filter(s => s.faction === capturingF && s.vx !== 99999);
+                       const capOrbiters = orbiters.filter(s => s.faction === capturingF && s.vx !== 99999 && s.vx !== 88888);
                        capOrbiters.forEach(s => {
                           s.x = destPortal.x;
                           s.y = destPortal.y;
@@ -602,13 +659,15 @@ export function updatePhysics(
               }
            }
        } else {
-           // Contested: progress decays
-           planet.captureProgress = Math.max(0, planet.captureProgress - sdt * 0.1);
+           // Contested: progress decays (2x faster for BFG)
+           const decaySpeed = planet.type === 'bfg' ? 0.2 : 0.1;
+           planet.captureProgress = Math.max(0, planet.captureProgress - sdt * decaySpeed);
            if (planet.captureProgress === 0) planet.capturingFaction = null;
        }
     } else {
-       // Decay capture progress if no capturing ships or defenders respawned
-       planet.captureProgress = Math.max(0, planet.captureProgress - sdt * 0.1);
+       // Decay capture progress if no capturing ships or defenders respawned (2x faster for BFG)
+       const decaySpeed = planet.type === 'bfg' ? 0.2 : 0.1;
+       planet.captureProgress = Math.max(0, planet.captureProgress - sdt * decaySpeed);
        if (planet.captureProgress === 0) planet.capturingFaction = null;
     }
   });
@@ -628,7 +687,7 @@ export function updatePhysics(
 
   return {
     planets: nextPlanets,
-    ships: nextShips.filter(s => s.vx !== 99999),
+    ships: nextShips.filter(s => s.vx !== 99999 && s.vx !== 88888),
     sparks: allSparks,
     lasers: nextLasers,
     screenShake,
@@ -641,6 +700,129 @@ export function updatePhysics(
   };
 }
 
+export function startBfgWarmup(
+  bfgPlanet: Planet,
+  targetPlanet: Planet
+): void {
+  bfgPlanet.bfgCharge = 0;
+  bfgPlanet.bfgCooldown = 20;
+  bfgPlanet.bfgWarmupTimer = 0.65;
+  bfgPlanet.bfgWarmupTarget = { x: targetPlanet.x, y: targetPlanet.y, targetPlanetId: targetPlanet.id };
+  bfgPlanet.turretAngle = Math.atan2(targetPlanet.y - bfgPlanet.y, targetPlanet.x - bfgPlanet.x);
+  sound.playBfgWarmup();
+}
+
+export function executeBfgFire(
+  bfgPlanet: Planet,
+  targetPlanet: Planet,
+  ships: Ship[],
+  sparks: Spark[]
+): { inFlightVaporized: number } {
+  bfgPlanet.bfgCharge = 0;
+  bfgPlanet.bfgCooldown = 20;
+  bfgPlanet.bfgFiringTimer = 0.85;
+  bfgPlanet.bfgBeamTarget = { x: targetPlanet.x, y: targetPlanet.y, targetPlanetId: targetPlanet.id };
+  bfgPlanet.bfgWarmupTimer = undefined;
+  bfgPlanet.bfgWarmupTarget = undefined;
+  bfgPlanet.turretAngle = Math.atan2(targetPlanet.y - bfgPlanet.y, targetPlanet.x - bfgPlanet.x);
+
+  sound.playBfgFire();
+
+  // 1. Vaporize 85% of target planet garrison
+  const startingTargetShips = targetPlanet.ships;
+  targetPlanet.ships = Math.max(0, Math.floor(startingTargetShips * 0.15));
+
+  // 2. 10s EMP paralysis on target planet (freezes production and turrets)
+  targetPlanet.empTimer = 10;
+
+  // 3. Vaporize in-flight enemy ships crossing the beam line
+  const x1 = bfgPlanet.x, y1 = bfgPlanet.y;
+  const x2 = targetPlanet.x, y2 = targetPlanet.y;
+  const dx = x2 - x1, dy = y2 - y1;
+  const lenSq = dx * dx + dy * dy;
+
+  let inFlightVaporized = 0;
+  if (lenSq > 0) {
+    ships.forEach(ship => {
+      if (ship.vx === 99999 || ship.vx === 88888 || ship.faction === bfgPlanet.owner) return;
+      let t = ((ship.x - x1) * dx + (ship.y - y1) * dy) / lenSq;
+      t = Math.max(0, Math.min(1, t));
+      const projX = x1 + t * dx;
+      const projY = y1 + t * dy;
+      const distSq = (ship.x - projX) ** 2 + (ship.y - projY) ** 2;
+
+      if (distSq < 28 * 28) {
+        ship.vx = 99999;
+        inFlightVaporized++;
+        for (let k = 0; k < 4; k++) {
+          const a = Math.random() * Math.PI * 2;
+          const sp = 40 + Math.random() * 80;
+          sparks.push({
+            x: ship.x,
+            y: ship.y,
+            vx: Math.cos(a) * sp,
+            vy: Math.sin(a) * sp,
+            color: '#00f0ff',
+            life: 0.45,
+            maxLife: 0.45,
+            size: 2.5
+          });
+        }
+      }
+    });
+  }
+
+  // 4. Shockwaves and sparks at impact epicenter
+  for (let i = 0; i < 30; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const sp = 50 + Math.random() * 120;
+    sparks.push({
+      x: targetPlanet.x,
+      y: targetPlanet.y,
+      vx: Math.cos(a) * sp,
+      vy: Math.sin(a) * sp,
+      color: FACTIONS[bfgPlanet.owner]?.color || '#00f0ff',
+      life: 0.7,
+      maxLife: 0.7,
+      size: 3
+    });
+  }
+  sparks.push({
+    x: targetPlanet.x,
+    y: targetPlanet.y,
+    vx: 0,
+    vy: 0,
+    color: '#ffffff',
+    life: 0.8,
+    maxLife: 0.8,
+    size: targetPlanet.radius * 2.2,
+    type: 'shockwave'
+  });
+
+  return { inFlightVaporized };
+}
+
+export function fireBfgPlanet(
+  bfgPlanetId: string,
+  targetPlanetId: string,
+  state: PhysicsEngineState
+): PhysicsEngineState {
+  const nextPlanets = state.planets.map(p => ({ ...p }));
+  const bfg = nextPlanets.find(p => p.id === bfgPlanetId);
+  const target = nextPlanets.find(p => p.id === targetPlanetId);
+  if (!bfg || !target || bfg.type !== 'bfg' || (bfg.bfgCharge || 0) < 18 || (bfg.bfgWarmupTimer && bfg.bfgWarmupTimer > 0)) {
+    return state;
+  }
+
+  startBfgWarmup(bfg, target);
+
+  return {
+    ...state,
+    planets: nextPlanets,
+    screenShake: Math.min(state.screenShake + 4, 10)
+  };
+}
+
 export function launchFleets(
   sourcePlanetIds: string[],
   targetPlanetId: string,
@@ -648,16 +830,25 @@ export function launchFleets(
   sendRatio: number,
   overrideFaction?: FactionId
 ): PhysicsEngineState {
-  const target = state.planets.find(p => p.id === targetPlanetId);
+  const nextPlanets = state.planets.map(p => ({ ...p }));
+  const target = nextPlanets.find(p => p.id === targetPlanetId);
   if (!target) return state;
 
-  const nextPlanets = state.planets.map(p => ({ ...p }));
   const newShips: Ship[] = [...state.ships];
+  const newSparks: Spark[] = [...state.sparks];
   let totalLaunched = 0;
+  let bfgFired = false;
 
   sourcePlanetIds.forEach(sourceId => {
     const source = nextPlanets.find(p => p.id === sourceId);
     if (!source || source.id === targetPlanetId) return;
+
+    // Check if this source is a ready BFG superweapon!
+    if (source.type === 'bfg' && (source.bfgCharge || 0) >= 18 && (!source.bfgWarmupTimer || source.bfgWarmupTimer <= 0)) {
+      startBfgWarmup(source, target);
+      bfgFired = true;
+    }
+
     if (source.ships < 1 && !overrideFaction) return;
 
     const availableShips = Math.max(1, source.ships);
@@ -726,7 +917,9 @@ export function launchFleets(
   return {
     ...state,
     planets: nextPlanets,
-    ships: newShips
+    ships: newShips.filter(s => s.vx !== 99999 && s.vx !== 88888),
+    sparks: newSparks,
+    screenShake: bfgFired ? Math.min(state.screenShake + 4, 10) : state.screenShake
   };
 }
 
@@ -780,6 +973,7 @@ export function runAIDecisions(
 
         let score = 0;
         if (target.owner === 'neutral') score += 60; // prioritize neutral expansion
+        if (target.type === 'bfg' && target.owner === 'neutral') score += 100; // massive strategic objective: secure neutral BFG!
         if (target.type === 'mothership') score += 80; // massive priority for motherships
         if (target.ships < source.ships * 0.4) score += 40;
         if (target.ships < source.ships * 0.8) score += 20;
@@ -807,6 +1001,21 @@ export function runAIDecisions(
         }
       }
     });
+
+    // Autonomous AI BFG Superweapon Trigger
+    const readyBfg = aiPlanets.find(p => p.type === 'bfg' && (p.bfgCharge || 0) >= 18);
+    if (readyBfg) {
+      const hostilePlanets = updatedState.planets.filter(p => p.owner !== aiFaction && p.owner !== 'neutral');
+      if (hostilePlanets.length > 0) {
+        hostilePlanets.sort((a, b) => {
+          const valA = (a.owner === 'player' ? 60 : 0) + a.ships;
+          const valB = (b.owner === 'player' ? 60 : 0) + b.ships;
+          return valB - valA;
+        });
+        const targetToObliterate = hostilePlanets[0];
+        updatedState = fireBfgPlanet(readyBfg.id, targetToObliterate.id, updatedState);
+      }
+    }
 
     // Reinforcement: send ships from back planets to front
     const frontPlanets = aiPlanets.filter(p => {

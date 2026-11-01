@@ -17,11 +17,13 @@ function mkPlanet(
 ): Planet {
   return {
     id: `p${planetIdCounter++}`,
-    name: `Planet ${planetIdCounter}`,
+    name: type === 'bfg' ? `BFG Station` : `Planet ${planetIdCounter}`,
     x, y, radius, owner, ships, maxShips, type,
-    productionRate: productionRate ?? (1.0 + (radius - 25) * 0.03),
+    productionRate: type === 'bfg' ? 0 : (productionRate ?? (1.0 + (radius - 25) * 0.03)),
     portalTargetId,
     turretRange,
+    bfgCharge: 0,
+    bfgCooldown: 0,
     captureProgress: 0,
     capturingFaction: null,
     inCombat: false,
@@ -556,9 +558,16 @@ export function generateRandomLevel(factionCount: number, planetCount: number): 
     
     if (valid) {
       const rand = Math.random();
-      const type: PlanetType = rand < 0.1 ? 'turret' : rand < 0.2 ? 'portal' : rand < 0.25 ? 'mothership' : 'standard';
-      const rMultiplier = type === 'mothership' ? 1.5 : 1;
-      planets.push(mkPlanet(x, y, r * rMultiplier, 'neutral', Math.floor(Math.random() * 8) + 3, Math.floor(r * 2 * rMultiplier), type));
+      const hasBfg = planets.some(p => p.type === 'bfg');
+      const type: PlanetType = (!hasBfg && rand < 0.12 && planetCount >= 7)
+        ? 'bfg'
+        : rand < 0.22 ? 'turret'
+        : rand < 0.32 ? 'portal'
+        : rand < 0.38 ? 'mothership'
+        : 'standard';
+      const rMultiplier = type === 'mothership' ? 1.5 : type === 'bfg' ? 1.3 : 1;
+      const startingShips = type === 'bfg' ? 65 : Math.floor(Math.random() * 8) + 3;
+      planets.push(mkPlanet(x, y, r * rMultiplier, 'neutral', startingShips, Math.floor(r * 2 * rMultiplier), type));
     }
   }
 

@@ -7,7 +7,7 @@ export interface FactionInfo {
   isAI: boolean;
 }
 
-export type PlanetType = 'standard' | 'turret' | 'portal' | 'mothership';
+export type PlanetType = 'standard' | 'turret' | 'portal' | 'mothership' | 'bfg';
 
 export interface Planet {
   id: string;
@@ -23,6 +23,14 @@ export interface Planet {
   portalTargetId?: string;
   turretRange?: number;
   turretCooldown?: number;
+  // BFG Superweapon state
+  bfgCharge?: number; // 0 to 18 seconds
+  bfgCooldown?: number; // cooldown remaining in seconds
+  bfgFiringTimer?: number; // active beam duration (e.g. 0.8s)
+  bfgBeamTarget?: { x: number; y: number; targetPlanetId: string };
+  bfgWarmupTimer?: number; // Star Wars tributary convergence warmup (e.g. 0.65s)
+  bfgWarmupTarget?: { x: number; y: number; targetPlanetId: string };
+  empTimer?: number; // EMP paralysis duration in seconds (frozen production/turrets)
   // Capture progress: 0 to 1. When > 0, planet is being captured.
   captureProgress: number;
   capturingFaction: FactionId | null;

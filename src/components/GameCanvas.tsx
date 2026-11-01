@@ -541,6 +541,139 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
             ctx.stroke();
           }
           ctx.globalAlpha = 1.0;
+        } else if (planet.type === 'bfg') {
+          // ==========================================
+          // THE IMPERIAL SUPERWEAPON: DEATH STAR
+          // ==========================================
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(planet.x, planet.y, planet.radius, 0, Math.PI * 2);
+          ctx.clip(); // Clip everything cleanly to the station sphere
+
+          // 1. Armored Gunmetal Spherical Hull Gradient (3D metallic sphere lighting)
+          const dsGrad = ctx.createRadialGradient(
+            planet.x - planet.radius * 0.35, planet.y - planet.radius * 0.35, planet.radius * 0.05,
+            planet.x, planet.y, planet.radius
+          );
+          dsGrad.addColorStop(0, '#3a4454'); // Metallic specular highlight
+          dsGrad.addColorStop(0.35, '#222836'); // Matte gunmetal armor plate
+          dsGrad.addColorStop(0.75, '#121620'); // Deep dark slate hull
+          dsGrad.addColorStop(1, '#07090f'); // Shadowed rim
+          ctx.fillStyle = dsGrad;
+          ctx.fillRect(planet.x - planet.radius, planet.y - planet.radius, planet.radius * 2, planet.radius * 2);
+
+          // 2. Imperial Hull Surface Plating & Latitudinal Grid Lines
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+          ctx.lineWidth = 1;
+          for (let rFrac = 0.3; rFrac <= 0.85; rFrac += 0.28) {
+            ctx.beginPath();
+            ctx.arc(planet.x, planet.y, planet.radius * rFrac, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+
+          // Modular Panel Greebles
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.025)';
+          ctx.fillRect(planet.x - planet.radius * 0.7, planet.y - planet.radius * 0.5, planet.radius * 0.45, planet.radius * 0.35);
+          ctx.fillRect(planet.x + planet.radius * 0.1, planet.y + planet.radius * 0.15, planet.radius * 0.5, planet.radius * 0.3);
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+          ctx.fillRect(planet.x - planet.radius * 0.5, planet.y + planet.radius * 0.2, planet.radius * 0.4, planet.radius * 0.3);
+
+          // 3. Deep Equatorial Trench & Docking Bays
+          const trenchHeight = 3.5;
+          ctx.fillStyle = '#05070a';
+          ctx.fillRect(planet.x - planet.radius, planet.y - trenchHeight / 2, planet.radius * 2, trenchHeight);
+          ctx.strokeStyle = 'rgba(0, 0, 0, 0.85)';
+          ctx.lineWidth = 0.8;
+          ctx.strokeRect(planet.x - planet.radius, planet.y - trenchHeight / 2, planet.radius * 2, trenchHeight);
+
+          // Recessed Docking Bay / Telemetry Lights inside Trench
+          const trenchLights = [-0.85, -0.65, -0.45, -0.22, 0.0, 0.22, 0.45, 0.65, 0.85];
+          for (let idx = 0; idx < trenchLights.length; idx++) {
+            const lx = planet.x + trenchLights[idx] * planet.radius * 0.95;
+            const isCyan = (idx % 2 === 0);
+            ctx.fillStyle = isCyan ? '#38bdf8' : (planet.owner !== 'neutral' ? faction.color : '#fbbf24');
+            ctx.globalAlpha = 0.55 + 0.4 * Math.sin(t * 8 + idx * 1.5);
+            ctx.fillRect(lx - 1, planet.y - 1, 2, 2);
+          }
+          ctx.globalAlpha = 1.0;
+
+          // 4. Concave Superlaser Focus Dish (Oriented towards target or upper quadrant)
+          const aimAngle = planet.turretAngle !== undefined ? planet.turretAngle : -Math.PI * 0.28;
+          const dishOffset = planet.radius * 0.44;
+          const dishX = planet.x + Math.cos(aimAngle) * dishOffset;
+          const dishY = planet.y + Math.sin(aimAngle) * dishOffset;
+          const dishRadius = planet.radius * 0.34;
+
+          // Concave parabolic bowl with inverted inner shadow gradient
+          const dishGrad = ctx.createRadialGradient(
+            dishX - dishRadius * 0.35, dishY - dishRadius * 0.35, dishRadius * 0.05,
+            dishX, dishY, dishRadius
+          );
+          dishGrad.addColorStop(0, '#0a0d14'); // Dark concave center
+          dishGrad.addColorStop(0.6, '#181e2b');
+          dishGrad.addColorStop(0.9, '#283144');
+          dishGrad.addColorStop(1, '#424e66'); // Outer lit lip of the dish
+          ctx.fillStyle = dishGrad;
+          ctx.beginPath();
+          ctx.arc(dishX, dishY, dishRadius, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Concentric parabolic focusing steps
+          ctx.strokeStyle = 'rgba(100, 116, 139, 0.4)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.arc(dishX, dishY, dishRadius * 0.65, 0, Math.PI * 2);
+          ctx.stroke();
+
+          ctx.strokeStyle = 'rgba(148, 163, 184, 0.6)';
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.arc(dishX, dishY, dishRadius, 0, Math.PI * 2);
+          ctx.stroke();
+
+          // 8 Tributary Emitter Sub-Nodes along dish rim
+          for (let i = 0; i < 8; i++) {
+            const nodeAngle = aimAngle + (i * Math.PI * 2) / 8;
+            const nx = dishX + Math.cos(nodeAngle) * (dishRadius * 0.82);
+            const ny = dishY + Math.sin(nodeAngle) * (dishRadius * 0.82);
+            ctx.fillStyle = (planet.bfgCharge && planet.bfgCharge >= 18) || (planet.bfgWarmupTimer && planet.bfgWarmupTimer > 0)
+              ? '#22c55e'
+              : '#64748b';
+            ctx.beginPath();
+            ctx.arc(nx, ny, 1.2, 0, Math.PI * 2);
+            ctx.fill();
+          }
+
+          // Central Primary Superlaser Emitter Core
+          const isPrimed = (planet.bfgCharge && planet.bfgCharge >= 18);
+          const isWarming = (planet.bfgWarmupTimer && planet.bfgWarmupTimer > 0);
+          if (isPrimed || isWarming) {
+            ctx.shadowColor = '#22c55e';
+            ctx.shadowBlur = 12 + 6 * Math.sin(t * 15);
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(dishX, dishY, 3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#22c55e';
+            ctx.beginPath();
+            ctx.arc(dishX, dishY, 5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+          } else {
+            ctx.fillStyle = '#1e293b';
+            ctx.beginPath();
+            ctx.arc(dishX, dishY, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+          }
+
+          ctx.restore();
+
+          // Outer station rim stroke with subtle owner allegiance accent
+          ctx.beginPath();
+          ctx.arc(planet.x, planet.y, planet.radius, 0, Math.PI * 2);
+          ctx.strokeStyle = planet.owner !== 'neutral' ? faction.color : '#475569';
+          ctx.lineWidth = 2.2;
+          ctx.stroke();
         } else {
           // Standard planet, Turret, or Portal bodies
           let pt = 'small';
@@ -706,6 +839,106 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
           ctx.restore();
         }
 
+        // BFG Superweapon Structure
+        if (planet.type === 'bfg') {
+          ctx.save();
+          ctx.translate(planet.x, planet.y);
+
+          // 1. Triple Concentric Electromagnetic Rings
+          // Ring 1 (Outer)
+          ctx.strokeStyle = faction.color;
+          ctx.lineWidth = 2;
+          ctx.globalAlpha = 0.5 + 0.3 * Math.sin(t * 4);
+          ctx.setLineDash([12, 6]);
+          ctx.lineDashOffset = -t * 40;
+          ctx.beginPath();
+          ctx.arc(0, 0, planet.radius + 14, 0, Math.PI * 2);
+          ctx.stroke();
+
+          // Ring 2 (Mid Counter-rotating)
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1.5;
+          ctx.globalAlpha = 0.7;
+          ctx.setLineDash([6, 8]);
+          ctx.lineDashOffset = t * 30;
+          ctx.beginPath();
+          ctx.arc(0, 0, planet.radius + 9, 0, Math.PI * 2);
+          ctx.stroke();
+
+          // Ring 3 (Inner Ring)
+          ctx.strokeStyle = faction.color;
+          ctx.lineWidth = 2;
+          ctx.setLineDash([]);
+          ctx.globalAlpha = 0.8;
+          ctx.beginPath();
+          ctx.arc(0, 0, planet.radius + 4, 0, Math.PI * 2);
+          ctx.stroke();
+
+          // 2. Charging Plasma Arc Indicator (0 to 18 seconds)
+          const isWarming = planet.bfgWarmupTimer && planet.bfgWarmupTimer > 0;
+          const chargeFrac = isWarming ? 1 : Math.min(1, (planet.bfgCharge || 0) / 18);
+          if (chargeFrac > 0) {
+            ctx.strokeStyle = (chargeFrac >= 1 || isWarming) ? '#00ff88' : faction.color;
+            ctx.lineWidth = 4;
+            ctx.shadowColor = (chargeFrac >= 1 || isWarming) ? '#00ff88' : faction.color;
+            ctx.shadowBlur = (chargeFrac >= 1 || isWarming) ? 16 : 8;
+            ctx.globalAlpha = (chargeFrac >= 1 || isWarming) ? 0.9 + 0.1 * Math.sin(t * 12) : 0.85;
+            ctx.beginPath();
+            ctx.arc(0, 0, planet.radius + 18, -Math.PI / 2, -Math.PI / 2 + chargeFrac * Math.PI * 2);
+            ctx.stroke();
+          }
+
+          // 3. Status Badge (WARMING / READY / CHARGING)
+          if (isWarming) {
+            ctx.fillStyle = '#4ade80';
+            ctx.font = '900 10px Orbitron, Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.shadowColor = '#00ff66';
+            ctx.shadowBlur = 14;
+            ctx.fillText('FIRING...', 0, -planet.radius - 24);
+          } else if (chargeFrac >= 1) {
+            ctx.fillStyle = '#00ff88';
+            ctx.font = '900 10px Orbitron, Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.shadowColor = '#00ff88';
+            ctx.shadowBlur = 10;
+            ctx.fillText('BFG READY', 0, -planet.radius - 24);
+          } else if (planet.owner !== 'neutral') {
+            // Charging countdown
+            const remaining = Math.max(0, Math.ceil(18 - (planet.bfgCharge || 0)));
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 9px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.globalAlpha = 0.8;
+            ctx.fillText(`${remaining}s`, 0, -planet.radius - 23);
+          }
+
+          ctx.restore();
+        }
+
+        // EMP Arc Effect (Active on any planet affected by BFG blast)
+        if (planet.empTimer && planet.empTimer > 0) {
+          ctx.save();
+          ctx.translate(planet.x, planet.y);
+          ctx.strokeStyle = '#00f0ff';
+          ctx.lineWidth = 1.5;
+          ctx.shadowColor = '#00f0ff';
+          ctx.shadowBlur = 12;
+          ctx.globalAlpha = 0.7 + 0.3 * Math.sin(t * 20);
+
+          for (let i = 0; i < 4; i++) {
+            ctx.beginPath();
+            const arcAngle = t * 6 + (i * Math.PI / 2);
+            const r1 = planet.radius + 5 + (i % 2) * 6;
+            ctx.arc(0, 0, r1, arcAngle, arcAngle + 0.6);
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+
         // Capture progress bar
         if (planet.captureProgress > 0 && planet.capturingFaction) {
           const capFaction = FACTIONS[planet.capturingFaction];
@@ -852,6 +1085,160 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
         }
         
         ctx.restore();
+      });
+
+      // BFG Superweapon Warmup & Cataclysmic Mega-Beams
+      planets.forEach(p => {
+        if (p.type !== 'bfg') return;
+
+        // 1. STAR WARS TRIBUTARY WARMUP CONVERGENCE ANIMATION
+        if (p.bfgWarmupTimer && p.bfgWarmupTimer > 0 && p.bfgWarmupTarget) {
+          const target = p.bfgWarmupTarget;
+          const warmupProgress = Math.max(0, Math.min(1, 1 - p.bfgWarmupTimer / 0.65));
+          const aimAngle = p.turretAngle !== undefined ? p.turretAngle : Math.atan2(target.y - p.y, target.x - p.x);
+          const dishOffset = p.radius * 0.44;
+          const dishX = p.x + Math.cos(aimAngle) * dishOffset;
+          const dishY = p.y + Math.sin(aimAngle) * dishOffset;
+          const dishRadius = p.radius * 0.34;
+          const focalDist = p.radius * 0.95;
+          const focalX = p.x + Math.cos(aimAngle) * focalDist;
+          const focalY = p.y + Math.sin(aimAngle) * focalDist;
+
+          ctx.save();
+
+          // 8 Tributary Lasers Converging into Focal Point
+          ctx.shadowColor = '#00ff66';
+          ctx.shadowBlur = 12 * (0.5 + 0.5 * warmupProgress);
+          for (let i = 0; i < 8; i++) {
+            const nodeAngle = aimAngle + (i * Math.PI * 2) / 8;
+            const nx = dishX + Math.cos(nodeAngle) * (dishRadius * 0.82);
+            const ny = dishY + Math.sin(nodeAngle) * (dishRadius * 0.82);
+
+            // Outer emerald tributary beam
+            ctx.strokeStyle = '#22c55e';
+            ctx.lineWidth = 1.8 + warmupProgress * 2.2;
+            ctx.globalAlpha = 0.7 + 0.3 * Math.sin(t * 35 + i * 1.8);
+            ctx.beginPath();
+            ctx.moveTo(nx, ny);
+            ctx.lineTo(focalX, focalY);
+            ctx.stroke();
+
+            // Inner white-hot laser core
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 0.9;
+            ctx.globalAlpha = 0.9;
+            ctx.beginPath();
+            ctx.moveTo(nx, ny);
+            ctx.lineTo(focalX, focalY);
+            ctx.stroke();
+          }
+
+          // Swelling Plasma Orb at Convergence Focal Point
+          const orbRadius = (3.5 + warmupProgress * 11) * (1 + 0.12 * Math.sin(t * 45));
+          const orbGrad = ctx.createRadialGradient(focalX, focalY, 1, focalX, focalY, orbRadius * 1.8);
+          orbGrad.addColorStop(0, '#ffffff');
+          orbGrad.addColorStop(0.3, '#4ade80');
+          orbGrad.addColorStop(0.7, '#16a34a');
+          orbGrad.addColorStop(1, 'rgba(22, 163, 74, 0)');
+
+          ctx.fillStyle = orbGrad;
+          ctx.shadowColor = '#22c55e';
+          ctx.shadowBlur = 24 * warmupProgress;
+          ctx.beginPath();
+          ctx.arc(focalX, focalY, orbRadius * 1.8, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Blistering white nucleus
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(focalX, focalY, Math.max(2, orbRadius * 0.45), 0, Math.PI * 2);
+          ctx.fill();
+
+          // Crackling electric micro-lightning arcs
+          ctx.strokeStyle = '#cffafe';
+          ctx.lineWidth = 1.2;
+          ctx.shadowColor = '#86efac';
+          ctx.shadowBlur = 8;
+          ctx.globalAlpha = 0.85;
+          for (let a = 0; a < 4; a++) {
+            const arcAngle = (a * Math.PI) / 2 + t * 25;
+            const arcLen = orbRadius * (1.1 + 0.5 * Math.sin(t * 35 + a * 3));
+            const midX = focalX + Math.cos(arcAngle + 0.3) * (arcLen * 0.5);
+            const midY = focalY + Math.sin(arcAngle + 0.3) * (arcLen * 0.5);
+            const endX = focalX + Math.cos(arcAngle) * arcLen;
+            const endY = focalY + Math.sin(arcAngle) * arcLen;
+            ctx.beginPath();
+            ctx.moveTo(focalX, focalY);
+            ctx.quadraticCurveTo(midX, midY, endX, endY);
+            ctx.stroke();
+          }
+
+          ctx.restore();
+        }
+
+        // 2. CATACLYSMIC SUPERLASER MEGA-BEAM (Active Firing Blast)
+        if (p.bfgFiringTimer && p.bfgFiringTimer > 0 && p.bfgBeamTarget) {
+          const target = p.bfgBeamTarget;
+          const beamLife = Math.max(0, Math.min(1, p.bfgFiringTimer / 0.85)); // 1 to 0
+          const aimAngle = p.turretAngle !== undefined ? p.turretAngle : Math.atan2(target.y - p.y, target.x - p.x);
+          const focalX = p.x + Math.cos(aimAngle) * (p.radius * 0.95);
+          const focalY = p.y + Math.sin(aimAngle) * (p.radius * 0.95);
+          const factionColor = FACTIONS[p.owner]?.color || '#00ff66';
+
+          ctx.save();
+          // 1. Outer Massive Plasma Aura
+          ctx.strokeStyle = factionColor;
+          ctx.lineWidth = 34 * beamLife;
+          ctx.globalAlpha = 0.5 * beamLife;
+          ctx.shadowColor = factionColor;
+          ctx.shadowBlur = 35;
+          ctx.beginPath();
+          ctx.moveTo(focalX, focalY);
+          ctx.lineTo(target.x, target.y);
+          ctx.stroke();
+
+          // 2. High-energy Secondary Beam (Star Wars Hyper-Emerald)
+          ctx.strokeStyle = '#00ff66';
+          ctx.lineWidth = 16 * beamLife;
+          ctx.globalAlpha = 0.9 * beamLife;
+          ctx.stroke();
+
+          // 3. Intense Blinding White Core
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 6 * beamLife;
+          ctx.globalAlpha = 1.0 * beamLife;
+          ctx.shadowColor = '#ffffff';
+          ctx.shadowBlur = 16;
+          ctx.stroke();
+
+          // 4. Helical Electric Lightning Arcs twisting around the beam
+          const dx = target.x - focalX;
+          const dy = target.y - focalY;
+          const dist = Math.hypot(dx, dy);
+          const steps = Math.floor(dist / 22);
+          if (steps > 1) {
+            ctx.strokeStyle = '#cffafe';
+            ctx.lineWidth = 2.2 * beamLife;
+            ctx.globalAlpha = 0.9 * beamLife;
+            ctx.beginPath();
+            const angle = Math.atan2(dy, dx);
+            const perpAngle = angle + Math.PI / 2;
+
+            for (let i = 0; i <= steps; i++) {
+              const frac = i / steps;
+              const baseX = focalX + dx * frac;
+              const baseY = focalY + dy * frac;
+              const offset = Math.sin(frac * 25 + t * 40) * 14 * beamLife;
+              const arcX = baseX + Math.cos(perpAngle) * offset;
+              const arcY = baseY + Math.sin(perpAngle) * offset;
+              if (i === 0) ctx.moveTo(arcX, arcY);
+              else ctx.lineTo(arcX, arcY);
+            }
+            ctx.stroke();
+          }
+
+          ctx.restore();
+        }
       });
       
       // Lasers

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { GameCanvas } from './GameCanvas';
 import type { Planet, PlanetType, FactionId } from '../types/game';
 import { FACTIONS } from '../utils/levels';
-import { Pencil, Play, Trash2, Link as LinkIcon, Crosshair, Hexagon, Circle } from 'lucide-react';
+import { Pencil, Play, Trash2, Link as LinkIcon, Crosshair, Hexagon, Circle, Zap } from 'lucide-react';
 
 interface MapEditorProps {
   initialPlanets: Planet[];
@@ -17,7 +17,7 @@ export const MapEditor: React.FC<MapEditorProps> = ({ initialPlanets, initialMap
   const [planets, setPlanets] = useState<Planet[]>(initialPlanets);
   const [mapName, setMapName] = useState(initialMapName || `Custom Map ${new Date().toLocaleTimeString()}`);
   const [selectedPlanetId, setSelectedPlanetId] = useState<string | null>(null);
-  const [tool, setTool] = useState<'select' | 'add_standard' | 'add_mothership' | 'add_turret' | 'add_portal' | 'link_portal' | 'delete'>('select');
+  const [tool, setTool] = useState<'select' | 'add_standard' | 'add_mothership' | 'add_turret' | 'add_portal' | 'add_bfg' | 'link_portal' | 'delete'>('select');
   const [isDragging, setIsDragging] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
 
@@ -48,6 +48,7 @@ export const MapEditor: React.FC<MapEditorProps> = ({ initialPlanets, initialMap
       let radius = 25;
       if (type === 'mothership') radius = 35;
       if (type === 'portal') radius = 30;
+      if (type === 'bfg') radius = 34;
       
       // Prevent overlapping planets
       const hasCollision = planets.some(p => {
@@ -58,14 +59,16 @@ export const MapEditor: React.FC<MapEditorProps> = ({ initialPlanets, initialMap
 
       const newPlanet: Planet = {
         id: `planet-${Date.now()}`,
-        name: `Node ${planets.length + 1}`,
+        name: type === 'bfg' ? `BFG Station` : `Node ${planets.length + 1}`,
         x, y,
         radius,
-        maxShips: type === 'mothership' ? 200 : 100,
-        ships: 50,
-        owner: 'neutral',
+        maxShips: type === 'mothership' ? 200 : type === 'bfg' ? 150 : 100,
+        ships: type === 'bfg' ? 70 : 50,
+        owner: 'neutral', // Strictly neutral default
         type,
-        productionRate: radius / 10,
+        productionRate: type === 'bfg' ? 0 : radius / 10,
+        bfgCharge: 0,
+        bfgCooldown: 0,
         captureProgress: 0,
         capturingFaction: null,
         inCombat: false,
@@ -175,6 +178,12 @@ export const MapEditor: React.FC<MapEditorProps> = ({ initialPlanets, initialMap
             className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded text-[10px] sm:text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-1 sm:gap-2 ${tool === 'add_portal' ? 'bg-white text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
           >
             <LinkIcon className="w-4 h-4" /> <span className="hidden md:inline">Portal</span>
+          </button>
+          <button 
+            onClick={() => setTool('add_bfg')} 
+            className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded text-[10px] sm:text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-1 sm:gap-2 ${tool === 'add_bfg' ? 'bg-white text-black' : 'bg-white/10 text-white/70 hover:bg-white/20'}`}
+          >
+            <Zap className="w-4 h-4 text-emerald-400" /> <span className="hidden md:inline">BFG</span>
           </button>
           <button 
             onClick={() => setTool('delete')} 
